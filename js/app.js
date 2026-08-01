@@ -3,7 +3,8 @@
    لإدارة ومتابعة الطلاب
    ============================================================ */
 
-const STORAGE_KEY = 'aisha_mosque_students_v3';
+const STORAGE_KEY = 'quran_students';
+const TEACHERS_KEY = 'quran_teachers';
 
 // ===== GitHub Config (قاعدة البيانات المشتركة) =====
 // التوكن يُ entered من قبل المعلم ويُحفظ في LocalStorage (لا يُخزّن في الكود لأسباب أمنية)
