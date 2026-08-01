@@ -5,6 +5,55 @@
 
 const STORAGE_KEY = 'aisha_mosque_students_v3';
 
+// ===== GitHub Config (قاعدة البيانات المشتركة) =====
+// التوكن يُ entered من قبل المعلم ويُحفظ في LocalStorage (لا يُخزّن في الكود لأسباب أمنية)
+const GITHUB_OWNER = 'quran-q';
+const GITHUB_REPO = 'quran-student-tracker';
+const GITHUB_BRANCH = 'main';
+const GITHUB_DATA_URL = 'https://raw.githubusercontent.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/' + GITHUB_BRANCH + '/data.json';
+const GITHUB_API_URL = 'https://api.github.com/repos/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/contents/data.json';
+const TOKEN_STORAGE_KEY = 'github_sync_token';
+let githubDataSha = '';
+let isSyncing = false;
+
+function getGithubToken() {
+    return localStorage.getItem(TOKEN_STORAGE_KEY) || '';
+}
+
+function setGithubToken(token) {
+    localStorage.setItem(TOKEN_STORAGE_KEY, token);
+}
+
+function hasGithubToken() {
+    return getGithubToken().length > 0;
+}
+
+// التحقق من وجود التوكن عند الحاجة للمزامنة
+function ensureToken() {
+    if (hasGithubToken()) return true;
+    showTokenModal();
+    return false;
+}
+
+function showTokenModal() {
+    document.getElementById('tokenModal').classList.add('show');
+}
+
+function closeTokenModal() {
+    document.getElementById('tokenModal').classList.remove('show');
+}
+
+function saveTokenFromModal() {
+    const token = document.getElementById('tokenInput').value.trim();
+    if (!token) { showToast('الرجاء إدخال التوكن', 'error'); return; }
+    setGithubToken(token);
+    closeTokenModal();
+    document.getElementById('tokenInput').value = '';
+    showToast('✓ تم حفظ التوكن بنجاح', 'success');
+    // إعادة تحميل البيانات من GitHub
+    loadStudents();
+}
+
 // ===== Surahs (114) =====
 const surahs = [
     '1. الفاتحة', '2. البقرة', '3. آل عمران', '4. النساء', '5. المائدة',
@@ -32,7 +81,7 @@ const surahs = [
     '111. المسد', '112. الإخلاص', '113. الفلق', '114. الناس'
 ];
 
-// ===== Number of Ayahs per Surah (for dynamic dropdowns) =====
+// ===== Number of Ayahs per Surah =====
 const surahAyahCounts = [
     7, 286, 200, 176, 120, 165, 206, 75, 129, 109,
     123, 111, 43, 52, 99, 128, 111, 110, 98, 135,
@@ -89,18 +138,135 @@ let currentTeacherFilter = '';
 let editingRecordIndex = -1;
 let editingStudentId = '';
 
-function loadStudents() {
+// ===== تحميل البيانات من GitHub (المصدر المشترك) =====
+async function loadStudents() {
+    try {
+        const cacheBuster = '?t=' + Date.now();
+        const response = await fetch(GITHUB_DATA_URL + cacheBuster, { cache: 'no-store' });
+        if (response.ok) {
+            const data = await response.json();
+            if (data.students && data.students.length > 0) {
+                students = data.students;
+                if (data.teachers && data.teachers.length > 0) {
+                    teachers.length = 0;
+                    teachers.push(...data.teachers);
+                }
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
+                localStorage.setItem(STORAGE_KEY + '_teachers', JSON.stringify(teachers));
+                await fetchGithubSha();
+                console.log('✓ تم تحميل البيانات من GitHub');
+                refreshUI();
+                return;
+            }
+        }
+    } catch (e) {
+        console.log('تعذّر الاتصال بـ GitHub، استخدام البيانات المحلية:', e.message);
+    }
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
         try { students = JSON.parse(stored); }
-        catch (e) { students = [...mockData]; saveStudents(); }
+        catch (e) { students = [...mockData]; saveStudentsLocal(); }
     } else {
-        students = [...mockData]; saveStudents();
+        students = [...mockData]; saveStudentsLocal();
+    }
+    refreshUI();
+}
+
+function saveStudentsLocal() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
+}
+
+// ===== حفظ البيانات على GitHub (المزامنة) =====
+async function saveStudents() {
+    saveStudentsLocal();
+    if (!hasGithubToken()) {
+        console.log('لا يوجد توكن - البيانات محفوظة محلياً فقط');
+        return;
+    }
+    if (isSyncing) return;
+    isSyncing = true;
+    try {
+        if (!githubDataSha) await fetchGithubSha();
+        const dataToSave = { teachers: teachers, students: students };
+        const content = btoa(unescape(encodeURIComponent(JSON.stringify(dataToSave, null, 2))));
+        const response = await fetch(GITHUB_API_URL, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'token ' + getGithubToken(),
+                'Accept': 'application/vnd.github.v3+json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                message: 'تحديث بيانات الطلاب - ' + new Date().toLocaleString('ar-SA'),
+                content: content,
+                sha: githubDataSha,
+                branch: GITHUB_BRANCH
+            })
+        });
+        if (response.ok) {
+            const result = await response.json();
+            githubDataSha = result.content.sha;
+            console.log('✓ تمت المزامنة مع GitHub بنجاح');
+        } else {
+            console.error('فشل رفع البيانات لـ GitHub:', response.status);
+        }
+    } catch (e) {
+        console.error('خطأ في المزامنة:', e.message);
+    } finally {
+        isSyncing = false;
     }
 }
 
-function saveStudents() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
+async function fetchGithubSha() {
+    if (!hasGithubToken()) return;
+    try {
+        const response = await fetch('https://api.github.com/repos/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/contents/data.json', {
+            headers: { 'Authorization': 'token ' + getGithubToken(), 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (response.ok) {
+            const data = await response.json();
+            githubDataSha = data.sha;
+        }
+    } catch (e) {
+        console.error('تعذّر جلب SHA:', e.message);
+    }
+}
+
+// مزامنة دورية (كل 30 ثانية)
+async function syncFromGithub() {
+    if (isSyncing) return;
+    try {
+        const cacheBuster = '?t=' + Date.now();
+        const response = await fetch(GITHUB_DATA_URL + cacheBuster, { cache: 'no-store' });
+        if (response.ok) {
+            const data = await response.json();
+            if (data.students) {
+                const remoteStr = JSON.stringify(data.students);
+                const localStr = JSON.stringify(students);
+                if (remoteStr !== localStr) {
+                    students = data.students;
+                    if (data.teachers) {
+                        teachers.length = 0;
+                        teachers.push(...data.teachers);
+                    }
+                    saveStudentsLocal();
+                    refreshUI();
+                    if (currentStudent) {
+                        const updated = students.find(s => s.id === currentStudent.id);
+                        if (updated) displayReport(updated);
+                    }
+                    console.log('✓ تم تحديث البيانات من GitHub (مزامنة تلقائية)');
+                }
+            }
+        }
+    } catch (e) { }
+}
+
+function refreshUI() {
+    populateTeacherSelect();
+    populateStudentSelect();
+    renderStudentsList();
+    renderStatsDashboard();
 }
 
 function getTeacherName(teacherId) {
@@ -206,42 +372,21 @@ function calculateBadges(student) {
     const badges = [];
     const history = student.history || [];
     const completed = getCompletedJuz(student);
-
     const excellentCount = history.filter(h => h.evaluation === 'ممتاز').length;
-    if (excellentCount >= 3) {
-        badges.push({ name: 'وسام الحافظ المتقن', icon: '🏆', desc: 'حصل على 3 تقييمات ممتازة' });
-    }
-
+    if (excellentCount >= 3) badges.push({ name: 'وسام الحافظ المتقن', icon: '🏆', desc: 'حصل على 3 تقييمات ممتازة' });
     const presentCount = history.filter(h => h.attendance === 'حاضر').length;
-    if (presentCount >= 5) {
-        badges.push({ name: 'وسام المواظبة', icon: '📅', desc: 'حضر 5 حصص' });
-    }
-
-    if (completed.length >= 1) {
-        badges.push({ name: 'وسام ختم الجزء', icon: '📖', desc: 'أكمل ' + completed.length + ' جزء من القرآن' });
-    }
-
-    if (completed.length >= 15) {
-        badges.push({ name: 'وسام نصف الحافظ', icon: '⭐', desc: 'أكمل نصف القرآن الكريم' });
-    }
-
-    if (completed.length >= 30) {
-        badges.push({ name: 'وسام حافظ القرآن', icon: '👑', desc: 'أكمل ختم القرآن الكريم كاملاً' });
-    }
-
+    if (presentCount >= 5) badges.push({ name: 'وسام المواظبة', icon: '📅', desc: 'حضر 5 حصص' });
+    if (completed.length >= 1) badges.push({ name: 'وسام ختم الجزء', icon: '📖', desc: 'أكمل ' + completed.length + ' جزء من القرآن' });
+    if (completed.length >= 15) badges.push({ name: 'وسام نصف الحافظ', icon: '⭐', desc: 'أكمل نصف القرآن الكريم' });
+    if (completed.length >= 30) badges.push({ name: 'وسام حافظ القرآن', icon: '👑', desc: 'أكمل ختم القرآن الكريم كاملاً' });
     const goodCount = history.filter(h => h.evaluation === 'جيد جداً' || h.evaluation === 'ممتاز').length;
-    if (goodCount >= 5) {
-        badges.push({ name: 'وسام التميز المستمر', icon: '🌟', desc: '5 تقييمات جيدة فأكثر' });
-    }
-
+    if (goodCount >= 5) badges.push({ name: 'وسام التميز المستمر', icon: '🌟', desc: '5 تقييمات جيدة فأكثر' });
     return badges;
 }
 
 function renderBadges(student) {
     const badges = calculateBadges(student);
-    if (badges.length === 0) {
-        return '<p class="no-badges">لا توجد أوسمة بعد — استمر في الاجتهاد لتحصل على الأوسمة! 💪</p>';
-    }
+    if (badges.length === 0) return '<p class="no-badges">لا توجد أوسمة بعد — استمر في الاجتهاد لتحصل على الأوسمة! 💪</p>';
     return badges.map(b => '<div class="badge-medal"><span class="badge-icon">' + b.icon + '</span><span class="badge-name">' + b.name + '</span><span class="badge-desc">' + b.desc + '</span></div>').join('');
 }
 
@@ -257,7 +402,6 @@ function displayReport(student) {
     document.getElementById('reportStudentName').textContent = student.name;
     document.getElementById('reportStudentId').textContent = student.nationalId;
     document.getElementById('reportTeacher').textContent = getTeacherName(student.teacherId);
-
     const sortedHistory = [...student.history].sort((a, b) => new Date(b.date) - new Date(a.date));
     const latest = sortedHistory[0];
     if (latest) {
@@ -272,15 +416,12 @@ function displayReport(student) {
         document.getElementById('reportDate').textContent = 'لا يوجد سجل';
         ['reportAttendance', 'reportMemorization', 'reportReview', 'reportStopPoint', 'reportEvaluation', 'reportNotes'].forEach(id => document.getElementById(id).textContent = '—');
     }
-
     const progress = calculateProgress(student);
     document.getElementById('juzTracker').innerHTML = renderJuzTracker(student);
     document.getElementById('progressPercent').textContent = progress + '%';
     document.getElementById('progressBar').style.width = progress + '%';
     document.getElementById('completedJuzCount').textContent = getCompletedJuz(student).length + ' / 30 جزء';
-
     document.getElementById('badgesContainer').innerHTML = renderBadges(student);
-
     renderHistoryTable(sortedHistory, student);
 }
 
@@ -288,9 +429,10 @@ function renderHistoryTable(history, student) {
     const tbody = document.getElementById('historyTableBody');
     if (history.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray);">لا يوجد سجل تاريخي</td></tr>'; return; }
     const studentId = student ? student.id : (currentStudent ? currentStudent.id : '');
-    tbody.innerHTML = history.map((h, idx) => {
-        const realIndex = student ? student.history.indexOf(h) : idx;
-        return '<tr><td>' + formatDate(h.date) + '</td><td>' + getAttendanceBadge(h.attendance) + '</td><td>' + (h.memorization || '—') + '</td><td>' + (h.review || '—') + '</td><td>' + (h.stopPoint || '—') + '</td><td>' + getEvaluationBadge(h.evaluation) + '</td><td>' + (h.notes || '—') + '</td><td class="no-print"><button class="history-action-btn history-action-edit" onclick="editHistoryRecord(\'' + studentId + '\',' + realIndex + ')">✏️ تعديل</button><button class="history-action-btn history-action-delete" onclick="deleteHistoryRecord(\'' + studentId + '\',' + realIndex + ')">🗑️ حذف</button></td></tr>';
+    tbody.innerHTML = history.map((h) => {
+        const realIndex = student ? student.history.indexOf(h) : -1;
+        const actions = realIndex >= 0 ? '<td class="no-print"><button class="history-action-btn history-action-edit" onclick="editHistoryRecord(\'' + studentId + '\',' + realIndex + ')">✏️ تعديل</button><button class="history-action-btn history-action-delete" onclick="deleteHistoryRecord(\'' + studentId + '\',' + realIndex + ')">🗑️ حذف</button></td>' : '<td class="no-print">—</td>';
+        return '<tr><td>' + formatDate(h.date) + '</td><td>' + getAttendanceBadge(h.attendance) + '</td><td>' + (h.memorization || '—') + '</td><td>' + (h.review || '—') + '</td><td>' + (h.stopPoint || '—') + '</td><td>' + getEvaluationBadge(h.evaluation) + '</td><td>' + (h.notes || '—') + '</td>' + actions + '</tr>';
     }).join('');
 }
 
@@ -309,11 +451,8 @@ function formatDate(dateStr) {
     if (!dateStr || dateStr === '—') return '—';
     const date = new Date(dateStr);
     if (isNaN(date.getTime())) return '—';
-    try {
-        return date.toLocaleDateString('ar-SA-u-ca-islamic-umalqura', { year: 'numeric', month: 'long', day: 'numeric' });
-    } catch (e) {
-        return date.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
-    }
+    try { return date.toLocaleDateString('ar-SA-u-ca-islamic-umalqura', { year: 'numeric', month: 'long', day: 'numeric' }); }
+    catch (e) { return date.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' }); }
 }
 
 function updateHijriPreview() {
@@ -337,16 +476,13 @@ function updateAyahDropdowns(surahSelectId, fromAyahId, toAyahId) {
     const fromSelect = document.getElementById(fromAyahId);
     const toSelect = document.getElementById(toAyahId);
     if (!surahSelect || !fromSelect || !toSelect) return;
-
     const surah = surahSelect.value;
     const ayahCount = getSurahAyahCount(surah);
-
     if (!surah || ayahCount === 0) {
         fromSelect.innerHTML = '<option value="">—</option>';
         toSelect.innerHTML = '<option value="">—</option>';
         return;
     }
-
     let fromHtml = '<option value="">— من آية —</option>';
     let toHtml = '<option value="">— إلى آية —</option>';
     for (let i = 1; i <= ayahCount; i++) {
@@ -355,8 +491,6 @@ function updateAyahDropdowns(surahSelectId, fromAyahId, toAyahId) {
     }
     fromSelect.innerHTML = fromHtml;
     toSelect.innerHTML = toHtml;
-
-    // Default: from 1 to last ayah
     fromSelect.value = '1';
     toSelect.value = String(ayahCount);
 }
@@ -364,87 +498,51 @@ function updateAyahDropdowns(surahSelectId, fromAyahId, toAyahId) {
 // ===== Smart Prediction Engine =====
 function predictNextMemorization(student) {
     if (!student || !student.history || student.history.length === 0) return null;
-
     const sortedHistory = [...student.history].sort((a, b) => new Date(b.date) - new Date(a.date));
     const latest = sortedHistory[0];
-
-    // Parse the latest memorization to find stop point
     const memText = latest.memorization || '';
     if (memText === '—' || !memText) {
-        // If last was absent, use the one before
         for (let i = 1; i < sortedHistory.length; i++) {
             const h = sortedHistory[i];
-            if (h.memorization && h.memorization !== '—') {
-                return predictFromMemorization(h.memorization, h.stopPoint);
-            }
+            if (h.memorization && h.memorization !== '—') return predictFromMemorization(h.memorization, h.stopPoint);
         }
         return null;
     }
-
     return predictFromMemorization(memText, latest.stopPoint);
 }
 
 function predictFromMemorization(memText, stopPoint) {
-    // Extract surah number from memorization text
     const surahMatch = memText.match(/^(\d+)\./);
     if (!surahMatch) return null;
-
     const surahNum = parseInt(surahMatch[1]);
     if (surahNum < 1 || surahNum > 114) return null;
-
     const surahName = surahs[surahNum - 1];
     const ayahCount = surahAyahCounts[surahNum - 1];
-
-    // Extract "إلى آية X" from memorization
     const toAyahMatch = memText.match(/إلى آية (\d+)/);
     const lastAyah = toAyahMatch ? parseInt(toAyahMatch[1]) : 0;
-
     if (lastAyah > 0 && lastAyah < ayahCount) {
-        // Continue same surah from next ayah
         const nextFrom = lastAyah + 1;
-        const nextTo = Math.min(nextFrom + 4, ayahCount); // Suggest 5 ayahs
-        return {
-            surah: surahName,
-            fromAyah: nextFrom,
-            toAyah: nextTo,
-            surahNum: surahNum,
-            reason: 'بناءً على آخر وقف عند آية ' + lastAyah + ' من ' + surahName + '، المتوقع الحفظ من آية ' + nextFrom + ' إلى آية ' + nextTo
-        };
+        const nextTo = Math.min(nextFrom + 4, ayahCount);
+        return { surah: surahName, fromAyah: nextFrom, toAyah: nextTo, surahNum: surahNum, reason: 'بناءً على آخر وقف عند آية ' + lastAyah + ' من ' + surahName + '، المتوقع الحفظ من آية ' + nextFrom + ' إلى آية ' + nextTo };
     } else if (lastAyah >= ayahCount) {
-        // Finished this surah, move to next
         if (surahNum < 114) {
             const nextSurahName = surahs[surahNum];
             const nextAyahCount = surahAyahCounts[surahNum];
             const suggestTo = Math.min(5, nextAyahCount);
-            return {
-                surah: nextSurahName,
-                fromAyah: 1,
-                toAyah: suggestTo,
-                surahNum: surahNum + 1,
-                reason: 'أتممت ' + surahName + '، المتوقع البدء بـ ' + nextSurahName + ' من آية 1 إلى آية ' + suggestTo
-            };
+            return { surah: nextSurahName, fromAyah: 1, toAyah: suggestTo, surahNum: surahNum + 1, reason: 'أتممت ' + surahName + '، المتوقع البدء بـ ' + nextSurahName + ' من آية 1 إلى آية ' + suggestTo };
         }
     }
-
     return null;
 }
 
 function showPrediction(studentId) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
-
     const predDiv = document.getElementById('predictionSuggestion');
     if (!predDiv) return;
-
     const prediction = predictNextMemorization(student);
-    if (!prediction) {
-        predDiv.classList.remove('show');
-        return;
-    }
-
-    predDiv.innerHTML = '<div class="pred-title">🤖 التنبؤ التلقائي بالحفظ القادم</div>' +
-        '<div class="pred-content">' + prediction.reason + '</div>' +
-        '<button class="pred-apply-btn" onclick="applyPrediction(\'' + prediction.surahNum + '\',' + prediction.fromAyah + ',' + prediction.toAyah + ')">✓ تطبيق الاقتراح</button>';
+    if (!prediction) { predDiv.classList.remove('show'); return; }
+    predDiv.innerHTML = '<div class="pred-title">🤖 التنبؤ التلقائي بالحفظ القادم</div><div class="pred-content">' + prediction.reason + '</div><button class="pred-apply-btn" onclick="applyPrediction(\'' + prediction.surahNum + '\',' + prediction.fromAyah + ',' + prediction.toAyah + ')">✓ تطبيق الاقتراح</button>';
     predDiv.classList.add('show');
 }
 
@@ -453,12 +551,10 @@ function applyPrediction(surahNum, fromAyah, toAyah) {
     const memSelect = document.getElementById('memorization');
     const fromSelect = document.getElementById('memorizationFromAyah');
     const toSelect = document.getElementById('memorizationToAyah');
-
     if (memSelect) memSelect.value = surahName;
     updateAyahDropdowns('memorization', 'memorizationFromAyah', 'memorizationToAyah');
     if (fromSelect) fromSelect.value = String(fromAyah);
     if (toSelect) toSelect.value = String(toAyah);
-
     showToast('✓ تم تطبيق اقتراح التنبؤ', 'success');
 }
 
@@ -466,9 +562,7 @@ function populateJuzDropdown() {
     const select = document.getElementById('completedJuzSelect');
     if (!select) return;
     let html = '<option value="">— اختر الجزء المكتمل —</option>';
-    for (let i = 1; i <= 30; i++) {
-        html += '<option value="' + i + '">الجزء ' + i + '</option>';
-    }
+    for (let i = 1; i <= 30; i++) html += '<option value="' + i + '">الجزء ' + i + '</option>';
     select.innerHTML = html;
 }
 
@@ -492,6 +586,7 @@ function getFilteredStudents() {
 
 function populateStudentSelect() {
     const select = document.getElementById('studentSelect');
+    if (!select) return;
     const filtered = getFilteredStudents();
     select.innerHTML = '<option value="">— اختر الطالب —</option>' + filtered.map(s => '<option value="' + s.id + '">' + s.name + ' - ' + s.nationalId + '</option>').join('');
 }
@@ -516,9 +611,7 @@ function renderStatsDashboard() {
     filtered.forEach(s => {
         const sorted = [...s.history].sort((a, b) => new Date(b.date) - new Date(a.date));
         const latest = sorted[0];
-        if (latest && latest.date === today && (latest.attendance === 'حاضر' || latest.attendance === 'متأخر')) {
-            presentToday++;
-        }
+        if (latest && latest.date === today && (latest.attendance === 'حاضر' || latest.attendance === 'متأخر')) presentToday++;
     });
     let excellentStudents = 0;
     filtered.forEach(s => {
@@ -540,7 +633,6 @@ function showExcellentStudentsModal() {
         const excellentCount = (s.history || []).filter(h => h.evaluation === 'ممتاز').length;
         return excellentCount >= 3;
     });
-
     const modalBody = document.getElementById('excellentModalBody');
     if (excellent.length === 0) {
         modalBody.innerHTML = '<p class="no-excellent">لا يوجد طلاب ممتازون حالياً</p>';
@@ -549,25 +641,14 @@ function showExcellentStudentsModal() {
             const badges = calculateBadges(s);
             const excellentCount = (s.history || []).filter(h => h.evaluation === 'ممتاز').length;
             const initials = getStudentInitials(s.name);
-            const badgesHtml = badges.length > 0
-                ? badges.map(b => '<span class="mini-badge">' + b.icon + ' ' + b.name + '</span>').join('')
-                : '<span class="mini-badge">⭐ تميز مستمر</span>';
-            return '<div class="excellent-student-card">' +
-                '<div class="student-avatar">' + initials + '</div>' +
-                '<div class="excellent-student-info">' +
-                '<div class="excellent-student-name">' + s.name + '</div>' +
-                '<div class="excellent-student-meta">المعلم: ' + getTeacherName(s.teacherId) + ' · ' + excellentCount + ' تقييم ممتاز · ' + getCompletedJuz(s).length + '/30 جزء</div>' +
-                '<div class="excellent-student-badges">' + badgesHtml + '</div>' +
-                '</div></div>';
+            const badgesHtml = badges.length > 0 ? badges.map(b => '<span class="mini-badge">' + b.icon + ' ' + b.name + '</span>').join('') : '<span class="mini-badge">⭐ تميز مستمر</span>';
+            return '<div class="excellent-student-card"><div class="student-avatar">' + initials + '</div><div class="excellent-student-info"><div class="excellent-student-name">' + s.name + '</div><div class="excellent-student-meta">المعلم: ' + getTeacherName(s.teacherId) + ' · ' + excellentCount + ' تقييم ممتاز · ' + getCompletedJuz(s).length + '/30 جزء</div><div class="excellent-student-badges">' + badgesHtml + '</div></div></div>';
         }).join('');
     }
-
     document.getElementById('excellentModal').classList.add('show');
 }
 
-function closeExcellentModal() {
-    document.getElementById('excellentModal').classList.remove('show');
-}
+function closeExcellentModal() { document.getElementById('excellentModal').classList.remove('show'); }
 
 // ===== Edit History Record =====
 function editHistoryRecord(studentId, recordIndex) {
@@ -575,11 +656,8 @@ function editHistoryRecord(studentId, recordIndex) {
     if (!student) return;
     const record = student.history[recordIndex];
     if (!record) return;
-
     editingRecordIndex = recordIndex;
     editingStudentId = studentId;
-
-    // Parse memorization
     let memSurah = '', memFrom = '', memTo = '';
     if (record.memorization && record.memorization !== '—') {
         const surahMatch = record.memorization.match(/^(\d+\.\s[^-]+)/);
@@ -589,8 +667,6 @@ function editHistoryRecord(studentId, recordIndex) {
         if (fromMatch) memFrom = fromMatch[1];
         if (toMatch) memTo = toMatch[1];
     }
-
-    // Parse review
     let revSurah = '', revFrom = '', revTo = '';
     if (record.review && record.review !== '—') {
         const surahMatch = record.review.match(/^(\d+\.\s[^-]+)/);
@@ -600,9 +676,7 @@ function editHistoryRecord(studentId, recordIndex) {
         if (fromMatch) revFrom = fromMatch[1];
         if (toMatch) revTo = toMatch[1];
     }
-
     const surahOptions = '<option value="">— اختر السورة —</option>' + surahs.map(s => '<option value="' + s + '"' + (s === memSurah ? ' selected' : '') + '>' + s + '</option>').join('');
-
     let memFromHtml = '<option value="">—</option>';
     let memToHtml = '<option value="">—</option>';
     if (memSurah) {
@@ -612,9 +686,7 @@ function editHistoryRecord(studentId, recordIndex) {
             memToHtml += '<option value="' + i + '"' + (String(i) === memTo ? ' selected' : '') + '>آية ' + i + '</option>';
         }
     }
-
     const revSurahOptions = '<option value="">— اختر السورة —</option>' + surahs.map(s => '<option value="' + s + '"' + (s === revSurah ? ' selected' : '') + '>' + s + '</option>').join('');
-
     let revFromHtml = '<option value="">—</option>';
     let revToHtml = '<option value="">—</option>';
     if (revSurah) {
@@ -624,15 +696,11 @@ function editHistoryRecord(studentId, recordIndex) {
             revToHtml += '<option value="' + i + '"' + (String(i) === revTo ? ' selected' : '') + '>آية ' + i + '</option>';
         }
     }
-
     const modalBody = document.getElementById('editModalBody');
     modalBody.innerHTML =
-        '<form onsubmit="saveEditedRecord(event)" class="teacher-form">' +
-        '<div class="form-grid">' +
+        '<form onsubmit="saveEditedRecord(event)" class="teacher-form"><div class="form-grid">' +
         '<div class="form-group"><label>التاريخ</label><input type="date" id="editDate" value="' + record.date + '" required></div>' +
-        '<div class="form-group"><label>الحضور</label><select id="editAttendance">' +
-        ['حاضر', 'غائب', 'غائب بعذر', 'متأخر'].map(a => '<option value="' + a + '"' + (a === record.attendance ? ' selected' : '') + '>' + a + '</option>').join('') +
-        '</select></div>' +
+        '<div class="form-group"><label>الحضور</label><select id="editAttendance">' + ['حاضر', 'غائب', 'غائب بعذر', 'متأخر'].map(a => '<option value="' + a + '"' + (a === record.attendance ? ' selected' : '') + '>' + a + '</option>').join('') + '</select></div>' +
         '<div class="form-group"><label>الحفظ - السورة</label><select id="editMemSurah" onchange="updateEditAyahDropdowns()">' + surahOptions + '</select></div>' +
         '<div class="form-group"><label>من آية</label><select id="editMemFrom">' + memFromHtml + '</select></div>' +
         '<div class="form-group"><label>إلى آية</label><select id="editMemTo">' + memToHtml + '</select></div>' +
@@ -640,14 +708,9 @@ function editHistoryRecord(studentId, recordIndex) {
         '<div class="form-group"><label>من آية</label><select id="editRevFrom">' + revFromHtml + '</select></div>' +
         '<div class="form-group"><label>إلى آية</label><select id="editRevTo">' + revToHtml + '</select></div>' +
         '<div class="form-group"><label>خط الوقف</label><input type="text" id="editStopPoint" value="' + (record.stopPoint || '') + '"></div>' +
-        '<div class="form-group"><label>التقييم</label><select id="editEvaluation">' +
-        ['ممتاز', 'جيد جداً', 'جيد', 'يحتاج تحسين', '—'].map(e => '<option value="' + e + '"' + (e === record.evaluation ? ' selected' : '') + '>' + e + '</option>').join('') +
-        '</select></div>' +
+        '<div class="form-group"><label>التقييم</label><select id="editEvaluation">' + ['ممتاز', 'جيد جداً', 'جيد', 'يحتاج تحسين', '—'].map(e => '<option value="' + e + '"' + (e === record.evaluation ? ' selected' : '') + '>' + e + '</option>').join('') + '</select></div>' +
         '<div class="form-group form-group-full"><label>الملاحظات</label><textarea id="editNotes" rows="3">' + (record.notes || '') + '</textarea></div>' +
-        '</div>' +
-        '<div class="form-actions"><button type="submit" class="btn btn-gold">💾 حفظ التعديلات</button></div>' +
-        '</form>';
-
+        '</div><div class="form-actions"><button type="submit" class="btn btn-gold">💾 حفظ التعديلات</button></div></form>';
     document.getElementById('editRecordModal').classList.add('show');
 }
 
@@ -658,7 +721,6 @@ function updateEditAyahDropdowns() {
     const revSurah = document.getElementById('editRevSurah').value;
     const revFrom = document.getElementById('editRevFrom');
     const revTo = document.getElementById('editRevTo');
-
     [{surah: memSurah, from: memFrom, to: memTo}, {surah: revSurah, from: revFrom, to: revTo}].forEach(function(group) {
         const ayahCount = getSurahAyahCount(group.surah);
         if (!group.surah || ayahCount === 0) {
@@ -683,60 +745,44 @@ function saveEditedRecord(event) {
     event.preventDefault();
     const student = students.find(s => s.id === editingStudentId);
     if (!student || editingRecordIndex < 0) return;
-
     const memSurah = document.getElementById('editMemSurah').value;
     const memFrom = document.getElementById('editMemFrom').value;
     const memTo = document.getElementById('editMemTo').value;
     const revSurah = document.getElementById('editRevSurah').value;
     const revFrom = document.getElementById('editRevFrom').value;
     const revTo = document.getElementById('editRevTo').value;
-
     const memText = memSurah ? (memSurah + (memFrom && memTo ? ' - من آية ' + memFrom + ' إلى آية ' + memTo : '')) : '—';
     const revText = revSurah ? (revSurah + (revFrom && revTo ? ' - من آية ' + revFrom + ' إلى آية ' + revTo : '')) : '—';
-
     student.history[editingRecordIndex] = {
         date: document.getElementById('editDate').value,
         attendance: document.getElementById('editAttendance').value,
-        memorization: memText,
-        review: revText,
+        memorization: memText, review: revText,
         stopPoint: document.getElementById('editStopPoint').value.trim() || '—',
         evaluation: document.getElementById('editEvaluation').value,
         notes: document.getElementById('editNotes').value.trim() || '—'
     };
-
     saveStudents();
     closeEditModal();
     showToast('✓ تم تعديل المتابعة بنجاح', 'success');
-
-    if (currentStudent && currentStudent.id === editingStudentId) {
-        displayReport(student);
-    }
+    if (currentStudent && currentStudent.id === editingStudentId) displayReport(student);
     renderStudentsList();
     renderStatsDashboard();
     editingRecordIndex = -1;
     editingStudentId = '';
 }
 
-function closeEditModal() {
-    document.getElementById('editRecordModal').classList.remove('show');
-}
+function closeEditModal() { document.getElementById('editRecordModal').classList.remove('show'); }
 
-// ===== Delete History Record =====
 function deleteHistoryRecord(studentId, recordIndex) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
     const record = student.history[recordIndex];
     if (!record) return;
-
     if (!confirm('⚠️ هل أنت متأكد من حذف متابعة بتاريخ ' + formatDate(record.date) + '؟\nلا يمكن التراجع عن هذا الإجراء.')) return;
-
     student.history.splice(recordIndex, 1);
     saveStudents();
     showToast('✓ تم حذف المتابعة بنجاح', 'success');
-
-    if (currentStudent && currentStudent.id === studentId) {
-        displayReport(student);
-    }
+    if (currentStudent && currentStudent.id === studentId) displayReport(student);
     renderStudentsList();
     renderStatsDashboard();
 }
@@ -747,11 +793,8 @@ function printReport() {
     if (sealEl) {
         const now = new Date();
         let hijriDate = '—';
-        try {
-            hijriDate = now.toLocaleDateString('ar-SA-u-ca-islamic-umalqura', { year: 'numeric', month: 'long', day: 'numeric' });
-        } catch (e) {
-            hijriDate = now.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' });
-        }
+        try { hijriDate = now.toLocaleDateString('ar-SA-u-ca-islamic-umalqura', { year: 'numeric', month: 'long', day: 'numeric' }); }
+        catch (e) { hijriDate = now.toLocaleDateString('ar-SA', { year: 'numeric', month: 'long', day: 'numeric' }); }
         const time = now.toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit', hour12: true });
         sealEl.innerHTML = 'جامع عائشة بنت عبدالعزيز الدريبي<br>تاريخ الإصدار: ' + hijriDate + '<br>الساعة: ' + time;
     }
@@ -763,31 +806,13 @@ function copyToWhatsApp() {
     const sortedHistory = [...currentStudent.history].sort((a, b) => new Date(b.date) - new Date(a.date));
     const latest = sortedHistory[0];
     if (!latest) { showToast('لا يوجد سجل لنسخه', 'error'); return; }
-
     const progress = calculateProgress(currentStudent);
     const completed = getCompletedJuz(currentStudent);
-
-    let text = 'تقرير متابعة الطالب\n';
-    text += '━━━━━━━━━━━━━━━\n';
-    text += 'الاسم: ' + currentStudent.name + '\n';
-    text += 'رقم الهوية: ' + currentStudent.nationalId + '\n';
-    text += 'المعلم: ' + getTeacherName(currentStudent.teacherId) + '\n';
-    text += 'التاريخ: ' + formatDate(latest.date) + '\n';
-    text += '━━━━━━━━━━━━━━━\n';
-    text += 'الحضور: ' + latest.attendance + '\n';
-    text += 'الحفظ الجديد: ' + (latest.memorization || '—') + '\n';
-    text += 'المراجعة: ' + (latest.review || '—') + '\n';
-    text += 'خط الوقف: ' + (latest.stopPoint || '—') + '\n';
-    text += 'التقييم: ' + (latest.evaluation || '—') + '\n';
-    text += 'الملاحظات: ' + (latest.notes || '—') + '\n';
-    text += '━━━━━━━━━━━━━━━\n';
-    text += 'تقدم الحفظ: ' + completed.length + ' / 30 جزء (' + progress + '%)\n';
-    text += '━━━━━━━━━━━━━━━\n';
-    text += 'جامع عائشة بنت عبدالعزيز الدريبي';
-
-    navigator.clipboard.writeText(text).then(() => {
-        showToast('✓ تم نسخ التقرير للواتساب', 'success');
-    }).catch(() => {
+    let text = 'تقرير متابعة الطالب\n━━━━━━━━━━━━━━━\n';
+    text += 'الاسم: ' + currentStudent.name + '\nرقم الهوية: ' + currentStudent.nationalId + '\nالمعلم: ' + getTeacherName(currentStudent.teacherId) + '\nالتاريخ: ' + formatDate(latest.date) + '\n━━━━━━━━━━━━━━━\n';
+    text += 'الحضور: ' + latest.attendance + '\nالحفظ الجديد: ' + (latest.memorization || '—') + '\nالمراجعة: ' + (latest.review || '—') + '\nخط الوقف: ' + (latest.stopPoint || '—') + '\nالتقييم: ' + (latest.evaluation || '—') + '\nالملاحظات: ' + (latest.notes || '—') + '\n━━━━━━━━━━━━━━━\n';
+    text += 'تقدم الحفظ: ' + completed.length + ' / 30 جزء (' + progress + '%)\n━━━━━━━━━━━━━━━\nجامع عائشة بنت عبدالعزيز الدريبي';
+    navigator.clipboard.writeText(text).then(() => { showToast('✓ تم نسخ التقرير للواتساب', 'success'); }).catch(() => {
         const textarea = document.createElement('textarea');
         textarea.value = text;
         document.body.appendChild(textarea);
@@ -804,7 +829,6 @@ function saveTracking(event) {
     if (!studentId) { showToast('الرجاء اختيار طالب', 'error'); return; }
     const student = students.find(s => s.id === studentId);
     if (!student) { showToast('الطالب غير موجود', 'error'); return; }
-
     const memSurah = document.getElementById('memorization').value;
     const memFrom = document.getElementById('memorizationFromAyah').value;
     const memTo = document.getElementById('memorizationToAyah').value;
@@ -812,36 +836,25 @@ function saveTracking(event) {
     const revFrom = document.getElementById('reviewFromAyah').value;
     const revTo = document.getElementById('reviewToAyah').value;
     const newJuz = document.getElementById('completedJuzSelect').value;
-
     const memText = memSurah ? (memSurah + (memFrom && memTo ? ' - من آية ' + memFrom + ' إلى آية ' + memTo : '')) : '—';
     const revText = revSurah ? (revSurah + (revFrom && revTo ? ' - من آية ' + revFrom + ' إلى آية ' + revTo : '')) : '—';
-
     const newRecord = {
         date: document.getElementById('trackDate').value,
         attendance: document.getElementById('attendance').value,
-        memorization: memText,
-        review: revText,
+        memorization: memText, review: revText,
         stopPoint: document.getElementById('stopPoint').value.trim() || '—',
         evaluation: document.getElementById('evaluation').value,
         notes: document.getElementById('notes').value.trim() || '—'
     };
-
     if (!newRecord.date) { showToast('الرجاء تحديد التاريخ', 'error'); return; }
-
     const studentName = student.name;
     if (!confirm('هل أنت متأكد من حفظ متابعة الطالب "' + studentName + '" بتاريخ ' + formatDate(newRecord.date) + '؟')) return;
-
     student.history.push(newRecord);
-
     if (newJuz) {
         const juzNum = parseInt(newJuz);
         if (!student.completedJuz) student.completedJuz = [];
-        if (!student.completedJuz.includes(juzNum)) {
-            student.completedJuz.push(juzNum);
-            student.completedJuz.sort((a, b) => a - b);
-        }
+        if (!student.completedJuz.includes(juzNum)) { student.completedJuz.push(juzNum); student.completedJuz.sort((a, b) => a - b); }
     }
-
     saveStudents();
     document.getElementById('trackingForm').reset();
     setDefaultDate();
@@ -863,7 +876,6 @@ function addStudent(event) {
     if (!name || !nationalId) { showToast('الرجاء إدخال الاسم ورقم الهوية', 'error'); return; }
     if (!teacherId) { showToast('الرجاء اختيار المعلم', 'error'); return; }
     if (students.some(s => s.nationalId === nationalId)) { showToast('رقم الهوية موجود مسبقاً', 'error'); return; }
-
     const newStudent = { id: 'std_' + Date.now(), name: name, nationalId: nationalId, teacherId: teacherId, completedJuz: [], history: [] };
     students.push(newStudent);
     saveStudents();
@@ -876,6 +888,7 @@ function addStudent(event) {
 
 function renderStudentsList() {
     const tbody = document.getElementById('studentsListBody');
+    if (!tbody) return;
     const filtered = getFilteredStudents();
     if (filtered.length === 0) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--gray);">لا يوجد طلاب مسجّلون</td></tr>'; return; }
     tbody.innerHTML = filtered.map((s, idx) => {
@@ -900,11 +913,13 @@ function deleteStudent(studentId) {
 
 function setDefaultDate() {
     const today = new Date().toISOString().split('T')[0];
-    document.getElementById('trackDate').value = today;
+    const trackDate = document.getElementById('trackDate');
+    if (trackDate) trackDate.value = today;
 }
 
 function showToast(message, type) {
     const toast = document.getElementById('toast');
+    if (!toast) return;
     toast.textContent = message;
     toast.className = 'toast ' + (type || '') + ' show';
     setTimeout(() => { toast.classList.remove('show'); }, 3500);
@@ -914,13 +929,11 @@ document.addEventListener('DOMContentLoaded', () => {
     loadStudents();
     setDefaultDate();
     updateHijriPreview();
-    populateTeacherSelect();
-    populateStudentSelect();
-    renderStudentsList();
     populateSurahDropdowns();
     populateJuzDropdown();
-    renderStatsDashboard();
     document.getElementById('emptyState').style.display = 'block';
     updateLiveClock();
     setInterval(updateLiveClock, 1000);
+    // مزامنة دورية كل 30 ثانية لجلب التحديثات من أجهزة أخرى
+    setInterval(syncFromGithub, 30000);
 });
