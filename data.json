@@ -122,87 +122,22 @@
           "stopPoint": "نهاية سورة الفيل",
           "evaluation": "جيد جداً",
           "notes": "أداء جيد جداً، مراجعة قوية للسور السابقة."
-        },
-        {
-          "date": "2026-08-01",
-          "attendance": "حاضر",
-          "memorization": "105. الفيل - من آية 6 إلى آية 10",
-          "review": "—",
-          "stopPoint": "—",
-          "evaluation": "ممتاز",
-          "notes": "—"
         }
       ]
     },
     {
-      "id": "std_1785598753019",
-      "name": "بكر عمر باحاذق",
-      "nationalId": "٤٥٥٣٥٣٥٣٥",
-      "teacherId": "t2",
-      "completedJuz": [],
-      "history": []
-    },
-    {
-      "id": "std_1785598783861",
-      "name": "احمد سالم محمد",
-      "nationalId": "٥٣٥٣٥٣٥٣٣٥",
-      "teacherId": "t3",
-      "completedJuz": [],
-      "history": []
-    },
-    {
-      "id": "std_1785605006249",
-      "name": "k;welkckl",
-      "nationalId": "866868688",
-      "teacherId": "t2",
-      "completedJuz": [],
-      "history": []
-    },
-    {
-      "id": "std_1785609708439",
-      "name": "jkjfklfdvjl",
-      "nationalId": ";dkckdkkd",
+      "id": "std_1785599200619",
+      "name": "بكر باحاذق",
+      "nationalId": "474747477",
       "teacherId": "t1",
       "completedJuz": [],
       "history": []
     },
     {
-      "id": "std_1785598914185",
-      "name": "بكر",
-      "nationalId": "٤ف٣ف",
+      "id": "std_1785603058105",
+      "name": "سالمث",
+      "nationalId": "3838384848",
       "teacherId": "t2",
-      "completedJuz": [],
-      "history": []
-    },
-    {
-      "id": "std_1785599098384",
-      "name": "سالم",
-      "nationalId": "٨٨٧٧٧٨٨٧٩",
-      "teacherId": "t2",
-      "completedJuz": [],
-      "history": []
-    },
-    {
-      "id": "std_1785599332739",
-      "name": "محمد عمر",
-      "nationalId": "٣٤٣٣٤٤٤",
-      "teacherId": "t2",
-      "completedJuz": [],
-      "history": []
-    },
-    {
-      "id": "std_1785599391520",
-      "name": "عبدالله عمر",
-      "nationalId": "٩٩٩٨٨",
-      "teacherId": "t2",
-      "completedJuz": [],
-      "history": []
-    },
-    {
-      "id": "std_1785608171530",
-      "name": "مممممم",
-      "nationalId": "٧٦٦٦٨٦٨",
-      "teacherId": "t1",
       "completedJuz": [],
       "history": []
     }
