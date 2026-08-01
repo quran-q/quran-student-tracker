@@ -537,7 +537,7 @@ function handleSearchKey(event) {
    بحث أولياء الأمور — خصوصية تامة
    - لا تظهر اقتراحات تلقائية (Autocomplete) أثناء الكتابة
    - البحث يعمل فقط عند الضغط على زر "بحث" أو Enter
-   - يجب إدخال (الاسم + رقم الهوية) معاً أو رقم الهوية بدقة
+   - يقبل: الاسم، أو رقم الهوية، أو كلاهما معاً
    - النتيجة تقتصر على الطالب المطابق فقط دون كشف البقية
    ============================================================ */
 function handleSearch() {
@@ -545,43 +545,20 @@ function handleSearch() {
     const resultsDiv = document.getElementById('searchResults');
     if (query === '') { resultsDiv.innerHTML = ''; hideReport(); return; }
 
-    // تحليل المدخالات: قد يحتوي على اسم و/أو رقم هوية
-    // نبحث عن رقم الهوية (10 أرقام) في النص
-    const idMatch = query.match(/\d{10}/);
-    const nationalId = idMatch ? idMatch[0] : '';
-    // باقي النص (بعد إزالة رقم الهوية) هو الاسم
-    const namePart = query.replace(/\d{10}/, '').trim().toLowerCase();
+    const queryLower = query.toLowerCase();
 
-    let matches = [];
-
-    if (nationalId && namePart) {
-        // البحث المزدوج: الاسم + رقم الهوية معاً
-        matches = students.filter(s =>
-            s.nationalId === nationalId &&
-            s.name.toLowerCase().includes(namePart)
-        );
-    } else if (nationalId) {
-        // البحث برقم الهوية فقط (مطابقة دقيقة)
-        matches = students.filter(s => s.nationalId === nationalId);
-    } else if (namePart) {
-        // البحث بالاسم فقط — يتطلب إدخال الاسم الثلاثي أو جزء كبير منه
-        // نطالب بحد أدنى 3 أحرف لتفادي التخمين
-        if (namePart.length < 3) {
-            resultsDiv.innerHTML = '<div class="search-result-item" style="cursor:default;">⚠️ للبحث بالاسم، أدخل الاسم كاملاً أو جزءاً منه (3 أحرف فأكثر) مع رقم الهوية</div>';
-            hideReport();
-            return;
-        }
-        matches = students.filter(s => s.name.toLowerCase().includes(namePart));
-    } else {
-        resultsDiv.innerHTML = '<div class="search-result-item" style="cursor:default;">أدخل رقم الهوية أو (الاسم + رقم الهوية)</div>';
-        hideReport();
-        return;
-    }
+    // البحث: يقبل الاسم أو رقم الهوية أو كليهما
+    // يطابق الطالب إذا احتوى اسمه على النص المدخل أو طابق رقم هويته
+    const matches = students.filter(s =>
+        s.name.toLowerCase().includes(queryLower) ||
+        s.nationalId.includes(query)
+    );
 
     if (matches.length === 0) {
         resultsDiv.innerHTML = '<div class="search-result-item" style="cursor:default;">لا يوجد طالب مطابق للبحث</div>';
         hideReport(); return;
     }
+
     // إظهار النتيجة المطابقة فقط
     resultsDiv.innerHTML = matches.map(s => '<div class="search-result-item" onclick="selectStudent(\'' + s.id + '\')"><span class="result-name">' + s.name + '</span><span class="result-id">هوية: ' + s.nationalId + ' · ' + getTeacherName(s.teacherId) + '</span></div>').join('');
     if (matches.length === 1) selectStudent(matches[0].id);
