@@ -165,46 +165,6 @@
       "teacherId": "t1",
       "completedJuz": [],
       "history": []
-    },
-    {
-      "id": "std_1785598914185",
-      "name": "بكر",
-      "nationalId": "٤ف٣ف",
-      "teacherId": "t2",
-      "completedJuz": [],
-      "history": []
-    },
-    {
-      "id": "std_1785599098384",
-      "name": "سالم",
-      "nationalId": "٨٨٧٧٧٨٨٧٩",
-      "teacherId": "t2",
-      "completedJuz": [],
-      "history": []
-    },
-    {
-      "id": "std_1785599332739",
-      "name": "محمد عمر",
-      "nationalId": "٣٤٣٣٤٤٤",
-      "teacherId": "t2",
-      "completedJuz": [],
-      "history": []
-    },
-    {
-      "id": "std_1785599391520",
-      "name": "عبدالله عمر",
-      "nationalId": "٩٩٩٨٨",
-      "teacherId": "t2",
-      "completedJuz": [],
-      "history": []
-    },
-    {
-      "id": "std_1785608171530",
-      "name": "مممممم",
-      "nationalId": "٧٦٦٦٨٦٨",
-      "teacherId": "t1",
-      "completedJuz": [],
-      "history": []
     }
   ]
 }
