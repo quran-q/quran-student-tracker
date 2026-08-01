@@ -79,9 +79,12 @@
 
     <main class="main-content">
         <div class="db-container">
-            <!-- Back Link -->
-            <div>
+            <!-- Back Link + Sync Button -->
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
                 <a href="index.html" class="back-link">← العودة للنظام الرئيسي</a>
+                <button class="back-link" onclick="showTokenModal()" style="cursor:pointer;background:var(--gold);color:var(--white);border-color:var(--gold);">
+                    🔗 ربط المزامنة بين الأجهزة
+                </button>
             </div>
 
             <!-- Add Name Card -->
@@ -142,6 +145,29 @@
     <footer class="site-footer">
         <p>© قاعدة بيانات الأسماء - جامع عائشة بنت عبدالعزيز الدريبي</p>
     </footer>
+
+    <!-- Token Modal (لإدخال توكن GitHub للمزامنة بين الأجهزة) -->
+    <div id="tokenModal" class="modal-overlay" onclick="if(event.target===this)closeTokenModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🔐 ربط المزامنة بين الأجهزة</h2>
+                <button class="modal-close" onclick="closeTokenModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:1rem;color:var(--gray);line-height:1.8;">
+                    لكي تظهر الأسماء على جميع الأجهزة (الجوال واللابتوب)، أدخل توكن GitHub مرة واحدة فقط على كل جهاز.<br>
+                    سيُحفظ التوكن في متصفحك ولن يُشارك مع أحد.
+                </p>
+                <div class="form-group">
+                    <label for="tokenInput">GitHub Token</label>
+                    <input type="password" id="tokenInput" placeholder="ghp_..." style="direction:ltr;text-align:left;">
+                </div>
+                <div class="form-actions">
+                    <button class="btn btn-gold" onclick="saveTokenFromModal()">💾 حفظ التوكن</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
