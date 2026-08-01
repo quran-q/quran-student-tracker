@@ -6,6 +6,57 @@
 // ===== مفاتيح التخزين الدائم في LocalStorage =====
 const STORAGE_KEY = 'quran_students';
 const TEACHERS_KEY = 'quran_teachers';
+const DATA_VERSION_KEY = 'quran_data_version';
+const CURRENT_DATA_VERSION = '3';
+const DELETED_STUDENTS_KEY = 'quran_deleted_students';
+
+// ===== نظام تسجيل دخول المعلمين =====
+const TEACHER_SESSION_KEY = 'teacher_session';
+const TEACHER_USERNAME = 'user';
+const TEACHER_PASSWORD = '123456';
+
+// التحقق من تسجيل الدخول
+function isTeacherLoggedIn() {
+    return localStorage.getItem(TEACHER_SESSION_KEY) === 'true';
+}
+
+// تسجيل الدخول
+function teacherLogin() {
+    const username = document.getElementById('loginUsername').value.trim();
+    const password = document.getElementById('loginPassword').value.trim();
+    if (username === TEACHER_USERNAME && password === TEACHER_PASSWORD) {
+        localStorage.setItem(TEACHER_SESSION_KEY, 'true');
+        closeLoginModal();
+        showToast('✓ تم تسجيل الدخول بنجاح', 'success');
+        switchTab('teacher-panel');
+    } else {
+        showToast('⚠️ اسم المستخدم أو كلمة المرور غير صحيحة', 'error');
+    }
+}
+
+// تسجيل الخروج
+function teacherLogout() {
+    if (!confirm('هل تريد تسجيل الخروج من لوحة المعلم؟')) return;
+    localStorage.removeItem(TEACHER_SESSION_KEY);
+    showToast('✓ تم تسجيل الخروج', 'success');
+    switchTab('student-portal');
+}
+
+// عرض نافذة تسجيل الدخول
+function showLoginModal() {
+    const modal = document.getElementById('loginModal');
+    if (modal) modal.classList.add('show');
+}
+
+// إغلاق نافذة تسجيل الدخول
+function closeLoginModal() {
+    const modal = document.getElementById('loginModal');
+    if (modal) modal.classList.remove('show');
+    const usernameInput = document.getElementById('loginUsername');
+    const passwordInput = document.getElementById('loginPassword');
+    if (usernameInput) usernameInput.value = '';
+    if (passwordInput) passwordInput.value = '';
+}
 
 // ===== GitHub Config (قاعدة البيانات المشتركة) =====
 const GITHUB_OWNER = 'quran-q';
@@ -46,6 +97,118 @@ function saveTokenFromModal() {
     document.getElementById('tokenInput').value = '';
     showToast('✓ تم حفظ التوكن بنجاح', 'success');
     syncFromGithub();
+}
+
+/* ============================================================
+   رابط المزامنة — إنشاء رابط يحتوي على التوكن
+   عند فتح الرابط على أي جهاز، يُحفظ التوكن تلقائياً
+   وتظهر جميع البيانات المشتركة (الطلاب الجدد)
+   ============================================================ */
+
+// قراءة التوكن من رابط URL تلقائياً عند فتح الصفحة
+function readTokenFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    if (tokenFromUrl) {
+        setGithubToken(tokenFromUrl);
+        console.log('✓ تم قراءة التوكن من الرابط وحفظه');
+        // تنظيف الرابط من التوكن (لأسباب أمنية)
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        return true;
+    }
+    return false;
+}
+
+// إنشاء رابط مشاركة يحتوي على التوكن
+function generateSyncLink() {
+    const token = getGithubToken();
+    const baseUrl = window.location.origin + window.location.pathname;
+    const syncLink = baseUrl + '?token=' + encodeURIComponent(token);
+    return syncLink;
+}
+
+// عرض رابط المزامنة في نافذة منفصلة مع إمكانية النسخ
+function showSyncLinkModal() {
+    const syncLink = generateSyncLink();
+    const modalBody = document.querySelector('#tokenModal .modal-body');
+    if (!modalBody) return;
+
+    // إضافة قسم رابط المزامنة
+    let linkSection = document.getElementById('syncLinkSection');
+    if (!linkSection) {
+        linkSection = document.createElement('div');
+        linkSection.id = 'syncLinkSection';
+        linkSection.style.cssText = 'margin-top:1.5rem;padding-top:1.5rem;border-top:2px dashed var(--gray-light);';
+        modalBody.appendChild(linkSection);
+    }
+
+    linkSection.innerHTML =
+        '<h3 style="margin-bottom:0.8rem;color:var(--navy-dark);font-size:1.1rem;">🔗 رابط المزامنة للمشاركة</h3>' +
+        '<p style="margin-bottom:0.8rem;color:var(--gray);line-height:1.7;font-size:0.9rem;">' +
+        'أرسل هذا الرابط لأي جهاز (جوال/لابتوب). عند فتحه سيتم ربط التوكن تلقائياً وستظهر جميع بيانات الطلاب المشتركة.' +
+        '</p>' +
+        '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;margin-bottom:0.8rem;">' +
+        '<input type="text" id="syncLinkInput" readonly ' +
+        'style="flex:1;min-width:250px;direction:ltr;text-align:left;padding:0.7rem 1rem;border:2px solid var(--gray-light);border-radius:var(--radius-sm);font-size:0.85rem;background:var(--off-white);color:var(--gray-dark);">' +
+        '<button class="btn btn-gold" onclick="copySyncLink()" style="flex-shrink:0;">📋 نسخ الرابط</button>' +
+        '</div>' +
+        '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">' +
+        '<button class="btn btn-outline" onclick="shareSyncLinkWhatsApp()" style="flex:1;min-width:150px;">📱 مشاركة عبر واتساب</button>' +
+        '<button class="btn btn-outline" onclick="shareSyncLinkQR()" style="flex:1;min-width:150px;">📷 رمز QR</button>' +
+        '</div>' +
+        '<div id="qrCodeContainer" style="display:none;text-align:center;margin-top:1rem;"></div>';
+
+    // تعيين قيمة الرابط عبر JavaScript (لتجنب مشاكل HTML escaping)
+    const linkInput = document.getElementById('syncLinkInput');
+    if (linkInput) linkInput.value = syncLink;
+
+    // إظهار النافذة
+    document.getElementById('tokenModal').classList.add('show');
+}
+
+// نسخ رابط المزامنة
+function copySyncLink() {
+    const linkInput = document.getElementById('syncLinkInput');
+    if (!linkInput) return;
+    const link = linkInput.value;
+    navigator.clipboard.writeText(link).then(() => {
+        showToast('✓ تم نسخ رابط المزامنة', 'success');
+    }).catch(() => {
+        linkInput.select();
+        try { document.execCommand('copy'); showToast('✓ تم نسخ رابط المزامنة', 'success'); }
+        catch (e) { showToast('تعذّر النسخ، الرجاء نسخ الرابط يدوياً', 'error'); }
+    });
+}
+
+// مشاركة رابط المزامنة عبر واتساب
+function shareSyncLinkWhatsApp() {
+    const linkInput = document.getElementById('syncLinkInput');
+    if (!linkInput) return;
+    const link = linkInput.value;
+    const message = '🔗 رابط نظام متابعة طلاب جامع عائشة بنت عبدالعزيز الدريبي\n\nافتح الرابط على جهازك لربط المزامنة تلقائياً:\n' + link;
+    const whatsappUrl = 'https://wa.me/?text=' + encodeURIComponent(message);
+    window.open(whatsappUrl, '_blank');
+}
+
+// عرض رمز QR لرابط المزامنة
+function shareSyncLinkQR() {
+    const linkInput = document.getElementById('syncLinkInput');
+    if (!linkInput) return;
+    const link = linkInput.value;
+    const qrContainer = document.getElementById('qrCodeContainer');
+    if (!qrContainer) return;
+
+    if (qrContainer.style.display === 'none') {
+        // استخدام API مجاني لإنشاء رمز QR
+        const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(link);
+        qrContainer.innerHTML =
+            '<p style="margin-bottom:0.5rem;color:var(--gray);font-size:0.85rem;">امسح الرمز بكاميرا الجوال لفتح الرابط</p>' +
+            '<img src="' + qrApiUrl + '" alt="QR Code" style="border:2px solid var(--gold);border-radius:var(--radius-sm);padding:0.5rem;background:white;">';
+        qrContainer.style.display = 'block';
+    } else {
+        qrContainer.style.display = 'none';
+    }
 }
 
 // ===== Surahs (114) =====
@@ -96,34 +259,9 @@ const teachers = [
     { id: 't3', name: 'الشيخ عبدالله' }
 ];
 
-const mockData = [
-    {
-        id: 'std_001', name: 'محمد عبدالله السالم', nationalId: '1098765432', teacherId: 't1',
-        completedJuz: [1, 2, 3],
-        history: [
-            { date: '2025-01-05', attendance: 'حاضر', memorization: '1. الفاتحة - من آية 1 إلى آية 7', review: '114. الناس - من آية 1 إلى آية 6', stopPoint: 'نهاية سورة الفاتحة', evaluation: 'ممتاز', notes: 'أداء ممتاز وحفظ متقن، يُنصح بالاستمرار على نفس المنهجية.' },
-            { date: '2025-01-12', attendance: 'حاضر', memorization: '2. البقرة - من آية 1 إلى آية 5', review: '1. الفاتحة - من آية 1 إلى آية 7', stopPoint: 'آية 5 من سورة البقرة', evaluation: 'جيد جداً', notes: 'تقدّم جيد، يحتاج إلى مراجعة المخارج في بعض الكلمات.' },
-            { date: '2025-01-19', attendance: 'غائب بعذر', memorization: '—', review: '—', stopPoint: 'آية 5 من سورة البقرة', evaluation: '—', notes: 'غاب بعذر مرضي، نكمل في الحصة القادمة.' }
-        ]
-    },
-    {
-        id: 'std_002', name: 'فهد ناصر العتيبي', nationalId: '1055512344', teacherId: 't2',
-        completedJuz: [30],
-        history: [
-            { date: '2025-01-06', attendance: 'حاضر', memorization: '108. الكوثر - من آية 1 إلى آية 3', review: '113. الفلق - من آية 1 إلى آية 5', stopPoint: 'نهاية سورة الكوثر', evaluation: 'جيد', notes: 'الحفظ جيد لكن يحتاج إلى تحسين في التجويد.' },
-            { date: '2025-01-13', attendance: 'متأخر', memorization: '112. الإخلاص - من آية 1 إلى آية 4', review: '108. الكوثر - من آية 1 إلى آية 3', stopPoint: 'نهاية سورة الإخلاص', evaluation: 'جيد جداً', notes: 'تحسّن ملحوظ، تأخّر 15 دقيقة بسبب الازدحام.' }
-        ]
-    },
-    {
-        id: 'std_003', name: 'عبدالرحمن خالد المطيري', nationalId: '1023456789', teacherId: 't1',
-        completedJuz: [1, 2, 3, 29, 30],
-        history: [
-            { date: '2025-01-07', attendance: 'حاضر', memorization: '110. النصر - من آية 1 إلى آية 3', review: '112. الإخلاص و 108. الكوثر', stopPoint: 'نهاية سورة النصر', evaluation: 'ممتاز', notes: 'طالب متميز، حفظ سريع وتجويد صحيح.' },
-            { date: '2025-01-14', attendance: 'حاضر', memorization: '111. المسد - من آية 1 إلى آية 5', review: '110. النصر - من آية 1 إلى آية 3', stopPoint: 'نهاية سورة المسد', evaluation: 'ممتاز', notes: 'استمرار التميّز، يُرشّح لبرنامج المحفظين.' },
-            { date: '2025-01-21', attendance: 'حاضر', memorization: '105. الفيل - من آية 1 إلى آية 5', review: '111. المسد و 110. النصر', stopPoint: 'نهاية سورة الفيل', evaluation: 'جيد جداً', notes: 'أداء جيد جداً، مراجعة قوية للسور السابقة.' }
-        ]
-    }
-];
+// تم حذف جميع الأسماء الافتراضية — القائمة تبدأ فارغة
+// المعلم يضيف الطلاب يدوياً من لوحة المعلم
+const mockData = [];
 
 let students = [];
 let currentStudent = null;
@@ -192,7 +330,7 @@ async function saveStudents() {
     isSyncing = true;
     try {
         if (!githubDataSha) await fetchGithubSha();
-        const dataToSave = { teachers: teachers, students: students };
+        const dataToSave = { teachers: teachers, students: students, deletedStudents: getDeletedStudents() };
         const content = btoa(unescape(encodeURIComponent(JSON.stringify(dataToSave, null, 2))));
         const response = await fetch(GITHUB_API_URL, {
             method: 'PUT',
@@ -248,60 +386,81 @@ async function syncFromGithub() {
         const response = await fetch(GITHUB_DATA_URL + cacheBuster, { cache: 'no-store' });
         if (response.ok) {
             const data = await response.json();
-            if (data.students && data.students.length > 0) {
-                const remoteStudents = data.students;
-                const remoteStudentIds = remoteStudents.map(s => s.id);
-                let changed = false;
-                const mergedStudents = [];
+            const remoteStudents = (data.students && Array.isArray(data.students)) ? data.students : [];
+            const remoteStudentIds = remoteStudents.map(s => s.id);
+            const localDeletedIds = getDeletedStudents();
+            let changed = false;
+            const mergedStudents = [];
 
-                // 1) الطلاب الموجودون على GitHub: نأخذ النسخة الأحدث (أكثر سجلات)
-                remoteStudents.forEach(remoteStudent => {
-                    const localStudent = students.find(s => s.id === remoteStudent.id);
-                    if (localStudent) {
-                        const localHistoryCount = (localStudent.history || []).length;
-                        const remoteHistoryCount = (remoteStudent.history || []).length;
-                        if (localHistoryCount > remoteHistoryCount) {
-                            mergedStudents.push(localStudent);
-                        } else if (remoteHistoryCount > localHistoryCount) {
-                            mergedStudents.push(remoteStudent);
-                            changed = true;
-                        } else {
-                            mergedStudents.push(localStudent);
-                        }
-                    } else {
+            // 1) الطلاب الموجودون على GitHub: نأخذ النسخة الأحدث (أكثر سجلات)
+            // لكن نستثني الطلاب المحذوفين محلياً (للمزامنة)
+            remoteStudents.forEach(remoteStudent => {
+                // إذا كان الطالب محذوفاً محلياً، لا نسترجعه
+                if (localDeletedIds.includes(remoteStudent.id)) return;
+                const localStudent = students.find(s => s.id === remoteStudent.id);
+                if (localStudent) {
+                    const localHistoryCount = (localStudent.history || []).length;
+                    const remoteHistoryCount = (remoteStudent.history || []).length;
+                    if (localHistoryCount > remoteHistoryCount) {
+                        mergedStudents.push(localStudent);
+                    } else if (remoteHistoryCount > localHistoryCount) {
                         mergedStudents.push(remoteStudent);
                         changed = true;
-                    }
-                });
-
-                // 2) الطلاب المحليون غير الموجودون على GitHub (نحافظ عليهم)
-                students.forEach(localStudent => {
-                    if (!remoteStudentIds.includes(localStudent.id)) {
+                    } else {
                         mergedStudents.push(localStudent);
                     }
-                });
+                } else {
+                    mergedStudents.push(remoteStudent);
+                    changed = true;
+                }
+            });
 
-                if (changed || mergedStudents.length !== students.length) {
-                    students = mergedStudents;
-                    if (data.teachers && data.teachers.length > 0) {
-                        teachers.length = 0;
-                        teachers.push(...data.teachers);
-                    }
-                    saveStudentsLocal();
-                    refreshUI();
-                    if (currentStudent) {
-                        const updated = students.find(s => s.id === currentStudent.id);
-                        if (updated) displayReport(updated);
-                    }
-                    console.log('✓ تم دمج البيانات من GitHub');
+            // 2) الطلاب المحليون غير الموجودون على GitHub (نحافظ عليهم)
+            students.forEach(localStudent => {
+                if (!remoteStudentIds.includes(localStudent.id)) {
+                    mergedStudents.push(localStudent);
                 }
-                if (hasGithubToken()) await fetchGithubSha();
-                // رفع ثنائي الاتجاه: إذا كان هناك طلاب محليون غير موجودين على GitHub، ارفعهم
-                const localOnlyStudents = students.filter(s => !remoteStudentIds.includes(s.id));
-                if (localOnlyStudents.length > 0) {
-                    console.log('⬆️ رفع ' + localOnlyStudents.length + ' طالب محلي إلى GitHub');
-                    await saveStudents();
+            });
+
+            // 3) تطبيق الحذف المزامن: إذا كان طالب موجود محلياً ولكنه في قائمة المحذوفات البعيدة
+            // (نفترض أن data.deletedStudents تحتوي على قائمة المحذوفين من GitHub)
+            const remoteDeletedIds = (data.deletedStudents && Array.isArray(data.deletedStudents)) ? data.deletedStudents : [];
+            if (remoteDeletedIds.length > 0) {
+                const beforeCount = mergedStudents.length;
+                const filtered = mergedStudents.filter(s => !remoteDeletedIds.includes(s.id));
+                if (filtered.length !== beforeCount) {
+                    changed = true;
+                    // تحديث قائمة المحذوفات محلياً
+                    remoteDeletedIds.forEach(id => {
+                        if (!localDeletedIds.includes(id)) saveDeletedStudent(id);
+                    });
                 }
+                mergedStudents.length = 0;
+                mergedStudents.push(...filtered);
+            }
+
+            if (changed || mergedStudents.length !== students.length) {
+                students = mergedStudents;
+                if (data.teachers && data.teachers.length > 0) {
+                    teachers.length = 0;
+                    teachers.push(...data.teachers);
+                }
+                saveStudentsLocal();
+                refreshUI();
+                if (currentStudent) {
+                    const updated = students.find(s => s.id === currentStudent.id);
+                    if (updated) displayReport(updated);
+                }
+                console.log('✓ تم دمج البيانات من GitHub');
+            }
+            if (hasGithubToken()) await fetchGithubSha();
+            // رفع ثنائي الاتجاه: إذا كان هناك طلاب محليون غير موجودين على GitHub، ارفعهم
+            // أو إذا كانت هناك حذوفات محلية غير موجودة على GitHub، ارفعها
+            const localOnlyStudents = students.filter(s => !remoteStudentIds.includes(s.id));
+            const localOnlyDeleted = localDeletedIds.filter(id => !remoteDeletedIds.includes(id));
+            if (localOnlyStudents.length > 0 || localOnlyDeleted.length > 0) {
+                console.log('⬆️ رفع ' + localOnlyStudents.length + ' طالب محلي + ' + localOnlyDeleted.length + ' حذف إلى GitHub');
+                await saveStudents();
             }
         }
     } catch (e) {
@@ -349,6 +508,11 @@ function updateLiveClock() {
 }
 
 function switchTab(tabId) {
+    // حماية لوحة المعلم — تتطلب تسجيل الدخول
+    if (tabId === 'teacher-panel' && !isTeacherLoggedIn()) {
+        showLoginModal();
+        return;
+    }
     document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
@@ -369,15 +533,56 @@ function handleSearchKey(event) {
     if (event.key === 'Enter') { event.preventDefault(); handleSearch(); }
 }
 
+/* ============================================================
+   بحث أولياء الأمور — خصوصية تامة
+   - لا تظهر اقتراحات تلقائية (Autocomplete) أثناء الكتابة
+   - البحث يعمل فقط عند الضغط على زر "بحث" أو Enter
+   - يجب إدخال (الاسم + رقم الهوية) معاً أو رقم الهوية بدقة
+   - النتيجة تقتصر على الطالب المطابق فقط دون كشف البقية
+   ============================================================ */
 function handleSearch() {
-    const query = document.getElementById('searchInput').value.trim().toLowerCase();
+    const query = document.getElementById('searchInput').value.trim();
     const resultsDiv = document.getElementById('searchResults');
     if (query === '') { resultsDiv.innerHTML = ''; hideReport(); return; }
-    const matches = students.filter(s => s.name.toLowerCase().includes(query) || s.nationalId.includes(query));
+
+    // تحليل المدخالات: قد يحتوي على اسم و/أو رقم هوية
+    // نبحث عن رقم الهوية (10 أرقام) في النص
+    const idMatch = query.match(/\d{10}/);
+    const nationalId = idMatch ? idMatch[0] : '';
+    // باقي النص (بعد إزالة رقم الهوية) هو الاسم
+    const namePart = query.replace(/\d{10}/, '').trim().toLowerCase();
+
+    let matches = [];
+
+    if (nationalId && namePart) {
+        // البحث المزدوج: الاسم + رقم الهوية معاً
+        matches = students.filter(s =>
+            s.nationalId === nationalId &&
+            s.name.toLowerCase().includes(namePart)
+        );
+    } else if (nationalId) {
+        // البحث برقم الهوية فقط (مطابقة دقيقة)
+        matches = students.filter(s => s.nationalId === nationalId);
+    } else if (namePart) {
+        // البحث بالاسم فقط — يتطلب إدخال الاسم الثلاثي أو جزء كبير منه
+        // نطالب بحد أدنى 3 أحرف لتفادي التخمين
+        if (namePart.length < 3) {
+            resultsDiv.innerHTML = '<div class="search-result-item" style="cursor:default;">⚠️ للبحث بالاسم، أدخل الاسم كاملاً أو جزءاً منه (3 أحرف فأكثر) مع رقم الهوية</div>';
+            hideReport();
+            return;
+        }
+        matches = students.filter(s => s.name.toLowerCase().includes(namePart));
+    } else {
+        resultsDiv.innerHTML = '<div class="search-result-item" style="cursor:default;">أدخل رقم الهوية أو (الاسم + رقم الهوية)</div>';
+        hideReport();
+        return;
+    }
+
     if (matches.length === 0) {
         resultsDiv.innerHTML = '<div class="search-result-item" style="cursor:default;">لا يوجد طالب مطابق للبحث</div>';
         hideReport(); return;
     }
+    // إظهار النتيجة المطابقة فقط
     resultsDiv.innerHTML = matches.map(s => '<div class="search-result-item" onclick="selectStudent(\'' + s.id + '\')"><span class="result-name">' + s.name + '</span><span class="result-id">هوية: ' + s.nationalId + ' · ' + getTeacherName(s.teacherId) + '</span></div>').join('');
     if (matches.length === 1) selectStudent(matches[0].id);
 }
@@ -942,13 +1147,37 @@ function renderStudentsList() {
     }).join('');
 }
 
+// حفظ قائمة الطلاب المحذوفين (للمزامنة — حتى ينحذفوا من جميع الأجهزة)
+function saveDeletedStudent(studentId) {
+    let deleted = [];
+    try {
+        const stored = localStorage.getItem(DELETED_STUDENTS_KEY);
+        deleted = stored ? JSON.parse(stored) : [];
+    } catch (e) { deleted = []; }
+    if (!deleted.includes(studentId)) {
+        deleted.push(studentId);
+        localStorage.setItem(DELETED_STUDENTS_KEY, JSON.stringify(deleted));
+    }
+}
+
+// قراءة قائمة الطلاب المحذوفين
+function getDeletedStudents() {
+    try {
+        const stored = localStorage.getItem(DELETED_STUDENTS_KEY);
+        return stored ? JSON.parse(stored) : [];
+    } catch (e) { return []; }
+}
+
 function deleteStudent(studentId) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
     if (!confirm('⚠️ هل أنت متأكد من حذف الطالب "' + student.name + '"؟\n\nسيتم حذف جميع سجلاته (' + student.history.length + ' متابعة) نهائياً.\nلا يمكن التراجع عن هذا الإجراء.')) return;
+    const studentName = student.name;
     students = students.filter(s => s.id !== studentId);
+    // تسجيل الحذف للمزامنة (حتى ينحذف من جميع الأجهزة)
+    saveDeletedStudent(studentId);
     saveStudents();
-    showToast('✓ تم حذف الطالب "' + student.name + '" بنجاح', 'success');
+    showToast('✓ تم حذف الطالب "' + studentName + '" بنجاح', 'success');
     populateStudentSelect();
     renderStudentsList();
     renderStatsDashboard();
@@ -968,7 +1197,28 @@ function showToast(message, type) {
     setTimeout(() => { toast.classList.remove('show'); }, 3500);
 }
 
+// التحقق من إصدار البيانات — إذا تغير الإصدار، نُفرغ الذاكرة المحلية
+// (يُستخدم عند حذف الأسماء الافتراضية لضمان عدم عودتها)
+function checkDataVersion() {
+    const storedVersion = localStorage.getItem(DATA_VERSION_KEY);
+    if (storedVersion !== CURRENT_DATA_VERSION) {
+        console.log('🔄 تحديث إصدار البيانات — تفريغ الذاكرة المحلية القديمة');
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(TEACHERS_KEY);
+        localStorage.setItem(DATA_VERSION_KEY, CURRENT_DATA_VERSION);
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // 0) قراءة التوكن من الرابط (إن وُجد) — قبل تحميل البيانات
+    const tokenFromUrl = readTokenFromUrl();
+    if (tokenFromUrl) {
+        showToast('✓ تم ربط التوكن من الرابط بنجاح', 'success');
+    }
+
+    // 0.5) التحقق من إصدار البيانات (لتفريغ الأسماء الافتراضية القديمة)
+    checkDataVersion();
+
     loadStudents();
     setDefaultDate();
     updateHijriPreview();
