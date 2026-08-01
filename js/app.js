@@ -3,11 +3,11 @@
    لإدارة ومتابعة الطلاب
    ============================================================ */
 
+// ===== مفاتيح التخزين الدائم في LocalStorage =====
 const STORAGE_KEY = 'quran_students';
 const TEACHERS_KEY = 'quran_teachers';
 
 // ===== GitHub Config (قاعدة البيانات المشتركة) =====
-// التوكن يُ entered من قبل المعلم ويُحفظ في LocalStorage (لا يُخزّن في الكود لأسباب أمنية)
 const GITHUB_OWNER = 'quran-q';
 const GITHUB_REPO = 'quran-student-tracker';
 const GITHUB_BRANCH = 'main';
@@ -29,13 +29,6 @@ function hasGithubToken() {
     return getGithubToken().length > 0;
 }
 
-// التحقق من وجود التوكن عند الحاجة للمزامنة
-function ensureToken() {
-    if (hasGithubToken()) return true;
-    showTokenModal();
-    return false;
-}
-
 function showTokenModal() {
     document.getElementById('tokenModal').classList.add('show');
 }
@@ -51,8 +44,7 @@ function saveTokenFromModal() {
     closeTokenModal();
     document.getElementById('tokenInput').value = '';
     showToast('✓ تم حفظ التوكن بنجاح', 'success');
-    // إعادة تحميل البيانات من GitHub
-    loadStudents();
+    syncFromGithub();
 }
 
 // ===== Surahs (114) =====
@@ -82,7 +74,6 @@ const surahs = [
     '111. المسد', '112. الإخلاص', '113. الفلق', '114. الناس'
 ];
 
-// ===== Number of Ayahs per Surah =====
 const surahAyahCounts = [
     7, 286, 200, 176, 120, 165, 206, 75, 129, 109,
     123, 111, 43, 52, 99, 128, 111, 110, 98, 135,
@@ -139,49 +130,61 @@ let currentTeacherFilter = '';
 let editingRecordIndex = -1;
 let editingStudentId = '';
 
-// ===== تحميل البيانات من GitHub (المصدر المشترك) =====
+/* ============================================================
+   تحميل البيانات — LocalStorage أولاً (المصدر الدائم)
+   عند Refresh: نحمّل من LocalStorage فوراً (لا تُمسح البيانات)
+   ثم نزامن مع GitHub في الخلفية (دمج وليس استبدال)
+   ============================================================ */
 async function loadStudents() {
-    try {
-        const cacheBuster = '?t=' + Date.now();
-        const response = await fetch(GITHUB_DATA_URL + cacheBuster, { cache: 'no-store' });
-        if (response.ok) {
-            const data = await response.json();
-            if (data.students && data.students.length > 0) {
-                students = data.students;
-                if (data.teachers && data.teachers.length > 0) {
-                    teachers.length = 0;
-                    teachers.push(...data.teachers);
-                }
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
-                localStorage.setItem(STORAGE_KEY + '_teachers', JSON.stringify(teachers));
-                await fetchGithubSha();
-                console.log('✓ تم تحميل البيانات من GitHub');
-                refreshUI();
-                return;
-            }
+    // 1) تحميل فوري من LocalStorage (المصدر الدائم — لا يُمسح عند Refresh)
+    const storedStudents = localStorage.getItem(STORAGE_KEY);
+    const storedTeachers = localStorage.getItem(TEACHERS_KEY);
+
+    if (storedStudents) {
+        try {
+            students = JSON.parse(storedStudents);
+            console.log('✓ تم تحميل ' + students.length + ' طالب من LocalStorage');
+        } catch (e) {
+            students = [...mockData];
+            saveStudentsLocal();
         }
-    } catch (e) {
-        console.log('تعذّر الاتصال بـ GitHub، استخدام البيانات المحلية:', e.message);
-    }
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-        try { students = JSON.parse(stored); }
-        catch (e) { students = [...mockData]; saveStudentsLocal(); }
     } else {
-        students = [...mockData]; saveStudentsLocal();
+        // أول مرة: نستخدم البيانات الوهمية
+        students = [...mockData];
+        saveStudentsLocal();
     }
+
+    if (storedTeachers) {
+        try {
+            const parsedTeachers = JSON.parse(storedTeachers);
+            if (parsedTeachers && parsedTeachers.length > 0) {
+                teachers.length = 0;
+                teachers.push(...parsedTeachers);
+            }
+        } catch (e) { /* نُبقي المعلمين الافتراضيين */ }
+    }
+
+    // 2) عرض البيانات فوراً (لا ننتظر GitHub)
     refreshUI();
+
+    // 3) المزامنة مع GitHub في الخلفية (دمج البيانات)
+    syncFromGithub();
 }
 
+// حفظ دائم في LocalStorage (يُستدعى عند كل تعديل)
 function saveStudentsLocal() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(students));
+    localStorage.setItem(TEACHERS_KEY, JSON.stringify(teachers));
 }
 
-// ===== حفظ البيانات على GitHub (المزامنة) =====
+// حفظ البيانات: محلي فوري + رفع على GitHub
 async function saveStudents() {
+    // 1) حفظ محلي فوري (دائم — لا يُمسح عند Refresh)
     saveStudentsLocal();
+
+    // 2) رفع على GitHub (للمزامنة بين الأجهزة)
     if (!hasGithubToken()) {
-        console.log('لا يوجد توكن - البيانات محفوظة محلياً فقط');
+        console.log('لا يوجد توكن — البيانات محفوظة محلياً فقط');
         return;
     }
     if (isSyncing) return;
@@ -233,7 +236,10 @@ async function fetchGithubSha() {
     }
 }
 
-// مزامنة دورية (كل 30 ثانية)
+/* ============================================================
+   المزامنة مع GitHub — دمج البيانات (وليس استبدالها)
+   نحافظ على الطلاب المحليين + نأخذ الأحدث لكل طالب
+   ============================================================ */
 async function syncFromGithub() {
     if (isSyncing) return;
     try {
@@ -241,12 +247,42 @@ async function syncFromGithub() {
         const response = await fetch(GITHUB_DATA_URL + cacheBuster, { cache: 'no-store' });
         if (response.ok) {
             const data = await response.json();
-            if (data.students) {
-                const remoteStr = JSON.stringify(data.students);
-                const localStr = JSON.stringify(students);
-                if (remoteStr !== localStr) {
-                    students = data.students;
-                    if (data.teachers) {
+            if (data.students && data.students.length > 0) {
+                const remoteStudents = data.students;
+                const remoteStudentIds = remoteStudents.map(s => s.id);
+                let changed = false;
+                const mergedStudents = [];
+
+                // 1) الطلاب الموجودون على GitHub: نأخذ النسخة الأحدث (أكثر سجلات)
+                remoteStudents.forEach(remoteStudent => {
+                    const localStudent = students.find(s => s.id === remoteStudent.id);
+                    if (localStudent) {
+                        const localHistoryCount = (localStudent.history || []).length;
+                        const remoteHistoryCount = (remoteStudent.history || []).length;
+                        if (localHistoryCount > remoteHistoryCount) {
+                            mergedStudents.push(localStudent);
+                        } else if (remoteHistoryCount > localHistoryCount) {
+                            mergedStudents.push(remoteStudent);
+                            changed = true;
+                        } else {
+                            mergedStudents.push(localStudent);
+                        }
+                    } else {
+                        mergedStudents.push(remoteStudent);
+                        changed = true;
+                    }
+                });
+
+                // 2) الطلاب المحليون غير الموجودون على GitHub (نحافظ عليهم)
+                students.forEach(localStudent => {
+                    if (!remoteStudentIds.includes(localStudent.id)) {
+                        mergedStudents.push(localStudent);
+                    }
+                });
+
+                if (changed || mergedStudents.length !== students.length) {
+                    students = mergedStudents;
+                    if (data.teachers && data.teachers.length > 0) {
                         teachers.length = 0;
                         teachers.push(...data.teachers);
                     }
@@ -256,11 +292,14 @@ async function syncFromGithub() {
                         const updated = students.find(s => s.id === currentStudent.id);
                         if (updated) displayReport(updated);
                     }
-                    console.log('✓ تم تحديث البيانات من GitHub (مزامنة تلقائية)');
+                    console.log('✓ تم دمج البيانات من GitHub');
                 }
+                if (hasGithubToken()) await fetchGithubSha();
             }
         }
-    } catch (e) { }
+    } catch (e) {
+        console.log('المزامنة مع GitHub غير متاحة حالياً');
+    }
 }
 
 function refreshUI() {
@@ -463,7 +502,6 @@ function updateHijriPreview() {
     preview.textContent = dateInput.value ? '📅 ' + formatDate(dateInput.value) : '—';
 }
 
-// ===== Dynamic Ayah Dropdowns =====
 function populateSurahDropdowns() {
     const surahOptions = '<option value="">— اختر السورة —</option>' + surahs.map(s => '<option value="' + s + '">' + s + '</option>').join('');
     const memField = document.getElementById('memorization');
@@ -496,7 +534,6 @@ function updateAyahDropdowns(surahSelectId, fromAyahId, toAyahId) {
     toSelect.value = String(ayahCount);
 }
 
-// ===== Smart Prediction Engine =====
 function predictNextMemorization(student) {
     if (!student || !student.history || student.history.length === 0) return null;
     const sortedHistory = [...student.history].sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -627,7 +664,6 @@ function renderStatsDashboard() {
     if (excellentEl) excellentEl.textContent = excellentStudents;
 }
 
-// ===== Excellent Students Modal =====
 function showExcellentStudentsModal() {
     const filtered = getFilteredStudents();
     const excellent = filtered.filter(s => {
@@ -651,7 +687,6 @@ function showExcellentStudentsModal() {
 
 function closeExcellentModal() { document.getElementById('excellentModal').classList.remove('show'); }
 
-// ===== Edit History Record =====
 function editHistoryRecord(studentId, recordIndex) {
     const student = students.find(s => s.id === studentId);
     if (!student) return;
