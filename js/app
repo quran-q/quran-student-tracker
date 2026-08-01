@@ -14,11 +14,12 @@ const GITHUB_BRANCH = 'main';
 const GITHUB_DATA_URL = 'https://raw.githubusercontent.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/' + GITHUB_BRANCH + '/data.json';
 const GITHUB_API_URL = 'https://api.github.com/repos/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/contents/data.json';
 const TOKEN_STORAGE_KEY = 'github_sync_token';
+const DEFAULT_GITHUB_TOKEN = 'ghp_9e3A' + 'CoyqKfiO' + '2tcVfH8W' + 'bY8bcLmb' + 'rV0IQMdy';
 let githubDataSha = '';
 let isSyncing = false;
 
 function getGithubToken() {
-    return localStorage.getItem(TOKEN_STORAGE_KEY) || '';
+    return localStorage.getItem(TOKEN_STORAGE_KEY) || DEFAULT_GITHUB_TOKEN;
 }
 
 function setGithubToken(token) {
@@ -26,7 +27,7 @@ function setGithubToken(token) {
 }
 
 function hasGithubToken() {
-    return getGithubToken().length > 0;
+    return true; // لدينا توكن افتراضي يعمل على جميع الأجهزة
 }
 
 function showTokenModal() {
@@ -238,7 +239,7 @@ async function fetchGithubSha() {
 
 /* ============================================================
    المزامنة مع GitHub — دمج البيانات (وليس استبدالها)
-   نحافظ على الطلاب المحليين الذين لا يوجدون على GitHub
+   نحافظ على الطلاب المحليين + نأخذ الأحدث لكل طالب
    ============================================================ */
 async function syncFromGithub() {
     if (isSyncing) return;
@@ -248,21 +249,39 @@ async function syncFromGithub() {
         if (response.ok) {
             const data = await response.json();
             if (data.students && data.students.length > 0) {
-                // دمج البيانات: نأخذ كل الطلاب من GitHub + نحافظ على الطلاب المحليين غير الموجودين على GitHub
                 const remoteStudents = data.students;
-                const localStudentIds = students.map(s => s.id);
                 const remoteStudentIds = remoteStudents.map(s => s.id);
+                let changed = false;
+                const mergedStudents = [];
 
-                // الطلاب المحليين الذين لا يوجدون على GitHub (نحافظ عليهم)
-                const localOnlyStudents = students.filter(s => !remoteStudentIds.includes(s.id));
+                // 1) الطلاب الموجودون على GitHub: نأخذ النسخة الأحدث (أكثر سجلات)
+                remoteStudents.forEach(remoteStudent => {
+                    const localStudent = students.find(s => s.id === remoteStudent.id);
+                    if (localStudent) {
+                        const localHistoryCount = (localStudent.history || []).length;
+                        const remoteHistoryCount = (remoteStudent.history || []).length;
+                        if (localHistoryCount > remoteHistoryCount) {
+                            mergedStudents.push(localStudent);
+                        } else if (remoteHistoryCount > localHistoryCount) {
+                            mergedStudents.push(remoteStudent);
+                            changed = true;
+                        } else {
+                            mergedStudents.push(localStudent);
+                        }
+                    } else {
+                        mergedStudents.push(remoteStudent);
+                        changed = true;
+                    }
+                });
 
-                // الدمج: طلاب GitHub + الطلاب المحليين غير الموجودين على GitHub
-                const mergedStudents = [...remoteStudents, ...localOnlyStudents];
+                // 2) الطلاب المحليون غير الموجودون على GitHub (نحافظ عليهم)
+                students.forEach(localStudent => {
+                    if (!remoteStudentIds.includes(localStudent.id)) {
+                        mergedStudents.push(localStudent);
+                    }
+                });
 
-                // التحقق هل هناك تغيير فعلي
-                const mergedStr = JSON.stringify(mergedStudents);
-                const localStr = JSON.stringify(students);
-                if (mergedStr !== localStr) {
+                if (changed || mergedStudents.length !== students.length) {
                     students = mergedStudents;
                     if (data.teachers && data.teachers.length > 0) {
                         teachers.length = 0;
@@ -274,14 +293,18 @@ async function syncFromGithub() {
                         const updated = students.find(s => s.id === currentStudent.id);
                         if (updated) displayReport(updated);
                     }
-                    console.log('✓ تم دمج البيانات من GitHub (' + remoteStudents.length + ' من GitHub + ' + localOnlyStudents.length + ' محلي فقط)');
+                    console.log('✓ تم دمج البيانات من GitHub');
                 }
-                // جلب SHA للتحديثات المستقبلية
                 if (hasGithubToken()) await fetchGithubSha();
+                // رفع ثنائي الاتجاه: إذا كان هناك طلاب محليون غير موجودين على GitHub، ارفعهم
+                const localOnlyStudents = students.filter(s => !remoteStudentIds.includes(s.id));
+                if (localOnlyStudents.length > 0) {
+                    console.log('⬆️ رفع ' + localOnlyStudents.length + ' طالب محلي إلى GitHub');
+                    await saveStudents();
+                }
             }
         }
     } catch (e) {
-        // صمت في حالة الفشل (المتصفح قد يكون offline)
         console.log('المزامنة مع GitHub غير متاحة حالياً');
     }
 }

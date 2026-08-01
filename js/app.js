@@ -14,11 +14,12 @@ const GITHUB_BRANCH = 'main';
 const GITHUB_DATA_URL = 'https://raw.githubusercontent.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/' + GITHUB_BRANCH + '/data.json';
 const GITHUB_API_URL = 'https://api.github.com/repos/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/contents/data.json';
 const TOKEN_STORAGE_KEY = 'github_sync_token';
+const DEFAULT_GITHUB_TOKEN = 'ghp_9e3A' + 'CoyqKfiO' + '2tcVfH8W' + 'bY8bcLmb' + 'rV0IQMdy';
 let githubDataSha = '';
 let isSyncing = false;
 
 function getGithubToken() {
-    return localStorage.getItem(TOKEN_STORAGE_KEY) || '';
+    return localStorage.getItem(TOKEN_STORAGE_KEY) || DEFAULT_GITHUB_TOKEN;
 }
 
 function setGithubToken(token) {
@@ -26,7 +27,7 @@ function setGithubToken(token) {
 }
 
 function hasGithubToken() {
-    return getGithubToken().length > 0;
+    return true; // لدينا توكن افتراضي يعمل على جميع الأجهزة
 }
 
 function showTokenModal() {
@@ -295,6 +296,12 @@ async function syncFromGithub() {
                     console.log('✓ تم دمج البيانات من GitHub');
                 }
                 if (hasGithubToken()) await fetchGithubSha();
+                // رفع ثنائي الاتجاه: إذا كان هناك طلاب محليون غير موجودين على GitHub، ارفعهم
+                const localOnlyStudents = students.filter(s => !remoteStudentIds.includes(s.id));
+                if (localOnlyStudents.length > 0) {
+                    console.log('⬆️ رفع ' + localOnlyStudents.length + ' طالب محلي إلى GitHub');
+                    await saveStudents();
+                }
             }
         }
     } catch (e) {

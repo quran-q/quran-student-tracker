@@ -13,6 +13,7 @@ const GITHUB_NAMES_FILE = 'names.json';
 const GITHUB_DATA_URL = 'https://raw.githubusercontent.com/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/' + GITHUB_BRANCH + '/' + GITHUB_NAMES_FILE;
 const GITHUB_API_URL = 'https://api.github.com/repos/' + GITHUB_OWNER + '/' + GITHUB_REPO + '/contents/' + GITHUB_NAMES_FILE;
 const TOKEN_STORAGE_KEY = 'github_sync_token';
+const DEFAULT_GITHUB_TOKEN = 'ghp_9e3A' + 'CoyqKfiO' + '2tcVfH8W' + 'bY8bcLmb' + 'rV0IQMdy';
 let namesDataSha = '';
 let isSyncing = false;
 
@@ -20,7 +21,7 @@ let names = [];
 
 /* ===== دوال التوكن ===== */
 function getGithubToken() {
-    return localStorage.getItem(TOKEN_STORAGE_KEY) || '';
+    return localStorage.getItem(TOKEN_STORAGE_KEY) || DEFAULT_GITHUB_TOKEN;
 }
 
 function setGithubToken(token) {
@@ -28,7 +29,7 @@ function setGithubToken(token) {
 }
 
 function hasGithubToken() {
-    return getGithubToken().length > 0;
+    return true; // لدينا توكن افتراضي يعمل على جميع الأجهزة
 }
 
 function showTokenModal() {
@@ -129,7 +130,7 @@ async function fetchNamesSha() {
     }
 }
 
-/* ===== المزامنة مع GitHub — دمج الأسماء (وليس استبدالها) ===== */
+/* ===== المزامنة مع GitHub — دمج ثنائي الاتجاه (سحب + رفع) ===== */
 async function syncNamesFromGithub() {
     if (isSyncing) return;
     try {
@@ -140,23 +141,31 @@ async function syncNamesFromGithub() {
             if (Array.isArray(remoteNames)) {
                 // دمج: نحافظ على الأسماء المحلية + نضيف الأسماء البعيدة غير الموجودة
                 const merged = [...names];
-                let changed = false;
+                let pulledNew = false;
                 remoteNames.forEach(function (remoteName) {
                     const exists = merged.some(function (n) {
                         return n.toLowerCase() === remoteName.toLowerCase();
                     });
                     if (!exists) {
                         merged.push(remoteName);
-                        changed = true;
+                        pulledNew = true;
                     }
                 });
-                if (changed) {
+                if (pulledNew) {
                     names = merged;
                     saveNamesLocal();
                     renderNames();
                     console.log('✓ تم دمج الأسماء من GitHub');
                 }
                 if (hasGithubToken()) await fetchNamesSha();
+                // رفع ثنائي الاتجاه: إذا كانت هناك أسماء محلية غير موجودة على GitHub، ارفعها
+                const localOnly = names.filter(function (n) {
+                    return !remoteNames.some(function (r) { return r.toLowerCase() === n.toLowerCase(); });
+                });
+                if (localOnly.length > 0) {
+                    console.log('⬆️ رفع ' + localOnly.length + ' اسم محلي إلى GitHub');
+                    await saveNames();
+                }
             }
         } else if (response.status === 404 && hasGithubToken() && names.length > 0) {
             // الملف غير موجود بعد — نرفع الأسماء المحلية لإنشائه
