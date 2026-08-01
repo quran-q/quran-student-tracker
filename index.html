@@ -65,11 +65,11 @@
                 <!-- Search Card -->
                 <div class="card search-card">
                     <h2 class="card-title">🔍 البحث عن الطالب</h2>
-                    <p class="card-desc">أدخل رقم الهوية أو اسم الطالب للبحث عن تقرير المتابعة</p>
+                    <p class="card-desc">للخصوصية: أدخل رقم الهوية (10 أرقام) بدقة، أو (الاسم + رقم الهوية) معاً. لا تظهر نتائج تلقائية أثناء الكتابة — اضغط "بحث" أو Enter.</p>
                     <div class="search-row">
                         <input type="text" id="searchInput" class="search-input"
-                               placeholder="رقم الهوية أو اسم الطالب..."
-                               oninput="handleSearch()" onkeydown="handleSearchKey(event)">
+                               placeholder="رقم الهوية أو الاسم + رقم الهوية..."
+                               autocomplete="off" onkeydown="handleSearchKey(event)">
                         <button class="btn btn-gold" onclick="handleSearch()">بحث</button>
                     </div>
                     <div id="searchResults" class="search-results"></div>
@@ -228,9 +228,12 @@
         <!-- ===== Teacher Panel ===== -->
         <section id="teacher-panel" class="tab-section">
             <div class="portal-container">
-                <!-- Sync Button (للمسؤول: ربط المزامنة بين الأجهزة) -->
-                <div style="display:flex;justify-content:flex-end;margin-bottom:0.5rem;">
-                    <button onclick="showTokenModal()" style="cursor:pointer;background:var(--gold);color:var(--white);border:none;border-radius:var(--radius-sm);padding:0.6rem 1.2rem;font-family:inherit;font-weight:700;font-size:0.9rem;transition:var(--transition);">
+                <!-- Sync + Logout Buttons -->
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.5rem;">
+                    <button onclick="teacherLogout()" style="cursor:pointer;background:var(--red);color:var(--white);border:none;border-radius:var(--radius-sm);padding:0.6rem 1.2rem;font-family:inherit;font-weight:700;font-size:0.9rem;transition:var(--transition);">
+                        🚪 تسجيل الخروج
+                    </button>
+                    <button onclick="showSyncLinkModal()" style="cursor:pointer;background:var(--gold);color:var(--white);border:none;border-radius:var(--radius-sm);padding:0.6rem 1.2rem;font-family:inherit;font-weight:700;font-size:0.9rem;transition:var(--transition);">
                         🔗 ربط المزامنة بين الأجهزة
                     </button>
                 </div>
@@ -445,6 +448,34 @@
         </div>
     </div>
 
+    <!-- Login Modal (تسجيل دخول المعلم) -->
+    <div id="loginModal" class="modal-overlay" onclick="if(event.target===this)closeLoginModal()">
+        <div class="modal-content" style="max-width:400px;">
+            <div class="modal-header">
+                <h2>🔐 تسجيل دخول المعلم</h2>
+                <button class="modal-close" onclick="closeLoginModal()">✕</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom:1rem;color:var(--gray);line-height:1.8;text-align:center;">
+                    للدخول إلى لوحة المعلم، أدخل بيانات الاعتماد.
+                </p>
+                <form onsubmit="event.preventDefault(); teacherLogin();">
+                    <div class="form-group" style="margin-bottom:1rem;">
+                        <label for="loginUsername">اسم المستخدم</label>
+                        <input type="text" id="loginUsername" placeholder="user" required autocomplete="off" style="direction:ltr;text-align:left;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:1.5rem;">
+                        <label for="loginPassword">كلمة المرور</label>
+                        <input type="password" id="loginPassword" placeholder="••••••" required style="direction:ltr;text-align:left;">
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-gold" style="width:100%;">🔐 دخول</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
     <!-- Token Modal (لإدخال توكن GitHub للمزامنة) -->
     <div id="tokenModal" class="modal-overlay" onclick="if(event.target===this)closeTokenModal()">
         <div class="modal-content">
@@ -471,7 +502,7 @@
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
-    <script src="js/app.js?v=4"></script>
+    <script src="js/app.js?v=6"></script>
 </body>
 </html>
 ]]>
