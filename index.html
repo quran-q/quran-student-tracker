@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام جامع عائشة بنت عبدالعزيز الدريبي لإدارة ومتابعة الطلاب</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- ===== Live Clock Bar ===== -->
+    <div class="live-clock-bar">
+        <div id="liveClock" class="live-clock">🕌 —</div>
+    </div>
+
+    <!-- ===== Header ===== -->
+    <header class="site-header">
+        <div class="header-inner">
+            <div class="logo-wrap">
+                <svg class="logo-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <defs>
+                        <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="#d4af37"/>
+                            <stop offset="100%" stop-color="#b8941f"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M50 8 C40 8 32 16 32 26 L32 40 L68 40 L68 26 C68 16 60 8 50 8 Z" fill="url(#goldGrad)"/>
+                    <circle cx="50" cy="6" r="3" fill="url(#goldGrad)"/>
+                    <rect x="30" y="40" width="40" height="45" fill="#0a1f44"/>
+                    <rect x="20" y="30" width="6" height="55" fill="#0a1f44"/>
+                    <rect x="74" y="30" width="6" height="55" fill="#0a1f44"/>
+                    <circle cx="23" cy="28" r="4" fill="url(#goldGrad)"/>
+                    <circle cx="77" cy="28" r="4" fill="url(#goldGrad)"/>
+                    <path d="M44 85 L44 62 C44 56 47 53 50 53 C53 53 56 56 56 62 L56 85 Z" fill="url(#goldGrad)"/>
+                    <rect x="15" y="85" width="70" height="6" rx="2" fill="#0a1f44"/>
+                </svg>
+            </div>
+            <div class="title-wrap">
+                <h1>جامع عائشة بنت عبدالعزيز الدريبي</h1>
+                <p class="subtitle">نظام إدارة ومتابعة الطلاب</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===== Navigation Tabs ===== -->
+    <nav class="tabs-nav">
+        <div class="tabs-inner">
+            <button class="tab-btn active" data-tab="student-portal" onclick="switchTab('student-portal')">
+                <span class="tab-icon">🎓</span>
+                بوابة الطالب وولي الأمر
+            </button>
+            <button class="tab-btn" data-tab="teacher-panel" onclick="switchTab('teacher-panel')">
+                <span class="tab-icon">📋</span>
+                لوحة المعلم
+            </button>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <!-- ===== Student Portal ===== -->
+        <section id="student-portal" class="tab-section active">
+            <div class="portal-container">
+                <!-- Search Card -->
+                <div class="card search-card">
+                    <h2 class="card-title">🔍 البحث عن الطالب</h2>
+                    <p class="card-desc">أدخل رقم الهوية أو اسم الطالب للبحث عن تقرير المتابعة</p>
+                    <div class="search-row">
+                        <input type="text" id="searchInput" class="search-input"
+                               placeholder="رقم الهوية أو اسم الطالب..."
+                               oninput="handleSearch()" onkeydown="handleSearchKey(event)">
+                        <button class="btn btn-gold" onclick="handleSearch()">بحث</button>
+                    </div>
+                    <div id="searchResults" class="search-results"></div>
+                </div>
+
+                <!-- Report Card -->
+                <div id="reportSection" class="report-wrapper" style="display:none;">
+                    <div id="reportCard" class="card report-card">
+                        <div class="report-header">
+                            <div class="report-logo">
+                                <svg class="logo-svg small" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                    <defs>
+                                        <linearGradient id="goldGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                            <stop offset="0%" stop-color="#d4af37"/>
+                                            <stop offset="100%" stop-color="#b8941f"/>
+                                        </linearGradient>
+                                    </defs>
+                                    <path d="M50 8 C40 8 32 16 32 26 L32 40 L68 40 L68 26 C68 16 60 8 50 8 Z" fill="url(#goldGrad2)"/>
+                                    <circle cx="50" cy="6" r="3" fill="url(#goldGrad2)"/>
+                                    <rect x="30" y="40" width="40" height="45" fill="#0a1f44"/>
+                                    <rect x="20" y="30" width="6" height="55" fill="#0a1f44"/>
+                                    <rect x="74" y="30" width="6" height="55" fill="#0a1f44"/>
+                                    <circle cx="23" cy="28" r="4" fill="url(#goldGrad2)"/>
+                                    <circle cx="77" cy="28" r="4" fill="url(#goldGrad2)"/>
+                                    <path d="M44 85 L44 62 C44 56 47 53 50 53 C53 53 56 56 56 62 L56 85 Z" fill="url(#goldGrad2)"/>
+                                    <rect x="15" y="85" width="70" height="6" rx="2" fill="#0a1f44"/>
+                                </svg>
+                            </div>
+                            <div class="report-title-block">
+                                <h2>جامع عائشة بنت عبدالعزيز الدريبي</h2>
+                                <p>تقرير متابعة الطالب</p>
+                            </div>
+                        </div>
+
+                        <div class="report-divider"></div>
+
+                        <!-- Student Info -->
+                        <div class="report-student-info">
+                            <div class="info-item">
+                                <span class="info-label">اسم الطالب:</span>
+                                <span class="info-value" id="reportStudentName">—</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">رقم الهوية:</span>
+                                <span class="info-value" id="reportStudentId">—</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">المعلم:</span>
+                                <span class="info-value" id="reportTeacher">—</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">تاريخ التقرير:</span>
+                                <span class="info-value" id="reportDate">—</span>
+                            </div>
+                        </div>
+
+                        <!-- Juz Tracker -->
+                        <div class="juz-tracker-section">
+                            <h3 class="section-heading">📊 مؤشر تقدم حفظ القرآن الكريم</h3>
+                            <div class="progress-summary">
+                                <div class="progress-info">
+                                    <span id="completedJuzCount">0 / 30 جزء</span>
+                                    <span class="progress-percent" id="progressPercent">0%</span>
+                                </div>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar" id="progressBar" style="width:0%"></div>
+                                </div>
+                            </div>
+                            <div class="juz-grid" id="juzTracker"></div>
+                        </div>
+
+                        <!-- Badges -->
+                        <div class="badges-section">
+                            <h3 class="section-heading">🏅 أوسمة التميز</h3>
+                            <div class="badges-container" id="badgesContainer"></div>
+                        </div>
+
+                        <!-- Latest Report Details -->
+                        <div class="report-details">
+                            <h3 class="section-heading">تفاصيل آخر متابعة</h3>
+                            <div class="details-grid">
+                                <div class="detail-box">
+                                    <span class="detail-icon">✅</span>
+                                    <span class="detail-label">حالة الحضور</span>
+                                    <span class="detail-value" id="reportAttendance">—</span>
+                                </div>
+                                <div class="detail-box">
+                                    <span class="detail-icon">📖</span>
+                                    <span class="detail-label">الحفظ الجديد</span>
+                                    <span class="detail-value" id="reportMemorization">—</span>
+                                </div>
+                                <div class="detail-box">
+                                    <span class="detail-icon">🔁</span>
+                                    <span class="detail-label">المراجعة</span>
+                                    <span class="detail-value" id="reportReview">—</span>
+                                </div>
+                                <div class="detail-box">
+                                    <span class="detail-icon">📍</span>
+                                    <span class="detail-label">خط الوقف الحالي</span>
+                                    <span class="detail-value" id="reportStopPoint">—</span>
+                                </div>
+                                <div class="detail-box">
+                                    <span class="detail-icon">⭐</span>
+                                    <span class="detail-label">التقييم</span>
+                                    <span class="detail-value" id="reportEvaluation">—</span>
+                                </div>
+                                <div class="detail-box">
+                                    <span class="detail-icon">📝</span>
+                                    <span class="detail-label">ملاحظات المعلم</span>
+                                    <span class="detail-value" id="reportNotes">—</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Print Seal (visible only in print) -->
+                        <div id="printSeal" class="print-seal"></div>
+
+                        <!-- Action Buttons -->
+                        <div class="report-actions no-print">
+                            <button class="btn btn-gold" onclick="printReport()">🖨️ طباعة / حفظ PDF</button>
+                            <button class="btn btn-whatsapp" onclick="copyToWhatsApp()">📱 نسخ تقرير للواتساب</button>
+                        </div>
+                    </div>
+
+                    <!-- History Table -->
+                    <div class="card history-card">
+                        <h3 class="card-title">📜 السجل التاريخي للمتابعات</h3>
+                        <div class="table-wrap">
+                            <table class="history-table" id="historyTable">
+                                <thead>
+                                    <tr>
+                                        <th>التاريخ</th>
+                                        <th>الحضور</th>
+                                        <th>الحفظ الجديد</th>
+                                        <th>المراجعة</th>
+                                        <th>خط الوقف</th>
+                                        <th>التقييم</th>
+                                        <th>الملاحظات</th>
+                                        <th>إجراء</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="historyTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="empty-state">
+                    <div class="empty-icon">🔎</div>
+                    <p>ابدأ بالبحث عن طالب لعرض تقرير المتابعة</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ===== Teacher Panel ===== -->
+        <section id="teacher-panel" class="tab-section">
+            <div class="portal-container">
+                <!-- Stats Dashboard -->
+                <div class="stats-dashboard">
+                    <div class="stat-card stat-total">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-info">
+                            <span class="stat-label">إجمالي الطلاب</span>
+                            <span class="stat-value" id="statTotalStudents">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-present">
+                        <div class="stat-icon">✅</div>
+                        <div class="stat-info">
+                            <span class="stat-label">الحاضرون اليوم</span>
+                            <span class="stat-value" id="statPresentToday">0</span>
+                        </div>
+                    </div>
+                    <div class="stat-card stat-excellent" onclick="showExcellentStudentsModal()" style="cursor:pointer;">
+                        <div class="stat-icon">🏆</div>
+                        <div class="stat-info">
+                            <span class="stat-label">الطلاب الممتازون</span>
+                            <span class="stat-value" id="statExcellentStudents">0</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Teacher Filter -->
+                <div class="card teacher-filter-card">
+                    <h2 class="card-title">👨‍🏫 اختيار المعلم / الحلقة</h2>
+                    <p class="card-desc">اختر المعلم لعرض طلابه فقط</p>
+                    <div class="form-group">
+                        <label for="teacherFilter">المعلم</label>
+                        <select id="teacherFilter" onchange="filterByTeacher()">
+                            <option value="">— كل المعلمين —</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Record Tracking Form -->
+                <div class="card">
+                    <h2 class="card-title">📝 تسجيل متابعة طالب</h2>
+                    <p class="card-desc">اختر الطالب وسجّل متابعة اليوم</p>
+                    <form id="trackingForm" class="teacher-form" onsubmit="saveTracking(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="studentSelect">اختر الطالب</label>
+                                <select id="studentSelect" required onchange="updateStudentJuzInfo()">
+                                    <option value="">— اختر الطالب —</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="trackDate">تاريخ اليوم</label>
+                                <input type="date" id="trackDate" required onchange="updateHijriPreview()">
+                                <span class="hijri-preview" id="hijriPreview">—</span>
+                            </div>
+                            <div class="form-group">
+                                <label for="attendance">حالة الحضور</label>
+                                <select id="attendance" required>
+                                    <option value="حاضر">حاضر</option>
+                                    <option value="غائب">غائب</option>
+                                    <option value="غائب بعذر">غائب بعذر</option>
+                                    <option value="متأخر">متأخر</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="memorization">الحفظ الجديد - السورة</label>
+                                <select id="memorization" onchange="updateAyahDropdowns('memorization','memorizationFromAyah','memorizationToAyah')">
+                                    <option value="">— اختر السورة —</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="memorizationFromAyah">من آية</label>
+                                <select id="memorizationFromAyah"><option value="">—</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="memorizationToAyah">إلى آية</label>
+                                <select id="memorizationToAyah"><option value="">—</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="review">المراجعة - السورة</label>
+                                <select id="review" onchange="updateAyahDropdowns('review','reviewFromAyah','reviewToAyah')">
+                                    <option value="">— اختر السورة —</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="reviewFromAyah">من آية</label>
+                                <select id="reviewFromAyah"><option value="">—</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="reviewToAyah">إلى آية</label>
+                                <select id="reviewToAyah"><option value="">—</option></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="completedJuzSelect">جزء مكتمل (اختياري)</label>
+                                <select id="completedJuzSelect">
+                                    <option value="">— اختر الجزء المكتمل —</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="stopPoint">خط الوقف الحالي</label>
+                                <input type="text" id="stopPoint" placeholder="مثال: آية 20 من سورة البقرة">
+                            </div>
+                            <div class="form-group form-group-full">
+                                <div class="prediction-suggestion" id="predictionSuggestion"></div>
+                            </div>
+                            <div class="form-group">
+                                <label for="evaluation">التقييم</label>
+                                <select id="evaluation">
+                                    <option value="ممتاز">ممتاز</option>
+                                    <option value="جيد جداً">جيد جداً</option>
+                                    <option value="جيد">جيد</option>
+                                    <option value="يحتاج تحسين">يحتاج تحسين</option>
+                                </select>
+                            </div>
+                            <div class="form-group form-group-full">
+                                <label for="notes">ملاحظات المعلم</label>
+                                <textarea id="notes" rows="3" placeholder="اكتب ملاحظاتك حول الطالب..."></textarea>
+                            </div>
+                            <div class="form-group form-group-full">
+                                <div class="student-juz-info" id="studentJuzInfo"></div>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-gold">💾 حفظ المتابعة</button>
+                            <button type="reset" class="btn btn-outline">إعادة تعيين</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Add New Student Form -->
+                <div class="card">
+                    <h2 class="card-title">➕ إضافة طالب جديد</h2>
+                    <p class="card-desc">أضف طالباً جديداً إلى قائمة الطلاب</p>
+                    <form id="addStudentForm" class="teacher-form" onsubmit="addStudent(event)">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="newStudentName">اسم الطالب</label>
+                                <input type="text" id="newStudentName" placeholder="الاسم الكامل" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="newStudentId">رقم الهوية</label>
+                                <input type="text" id="newStudentId" placeholder="10 أرقام" required maxlength="10">
+                            </div>
+                            <div class="form-group">
+                                <label for="newStudentTeacher">المعلم التابع له</label>
+                                <select id="newStudentTeacher" required>
+                                    <option value="">— اختر المعلم —</option>
+                                    <option value="t1">الشيخ أحمد</option>
+                                    <option value="t2">الشيخ خالد</option>
+                                    <option value="t3">الشيخ عبدالله</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-gold">➕ إضافة الطالب</button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Students List -->
+                <div class="card">
+                    <h2 class="card-title">👥 قائمة الطلاب المسجّلين</h2>
+                    <div class="table-wrap">
+                        <table class="history-table" id="studentsListTable">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>اسم الطالب</th>
+                                    <th>رقم الهوية</th>
+                                    <th>المعلم</th>
+                                    <th>الأجزاء</th>
+                                    <th>عدد المتابعات</th>
+                                    <th>آخر متابعة</th>
+                                    <th>إجراء</th>
+                                </tr>
+                            </thead>
+                            <tbody id="studentsListBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- ===== Footer ===== -->
+    <footer class="site-footer">
+        <p>© نظام جامع عائشة بنت عبدالعزيز الدريبي لإدارة ومتابعة الطلاب</p>
+    </footer>
+
+    <!-- Excellent Students Modal -->
+    <div id="excellentModal" class="modal-overlay" onclick="if(event.target===this)closeExcellentModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>🏆 الطلاب الممتازون</h2>
+                <button class="modal-close" onclick="closeExcellentModal()">✕</button>
+            </div>
+            <div class="modal-body" id="excellentModalBody"></div>
+        </div>
+    </div>
+
+    <!-- Edit History Record Modal -->
+    <div id="editRecordModal" class="modal-overlay" onclick="if(event.target===this)closeEditModal()">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>✏️ تعديل المتابعة</h2>
+                <button class="modal-close" onclick="closeEditModal()">✕</button>
+            </div>
+            <div class="modal-body" id="editModalBody"></div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
