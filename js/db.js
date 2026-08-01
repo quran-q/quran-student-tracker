@@ -50,6 +50,107 @@ function saveTokenFromModal() {
     syncNamesFromGithub();
 }
 
+/* ============================================================
+   رابط المزامنة — إنشاء رابط يحتوي على التوكن
+   عند فتح الرابط على أي جهاز، يُحفظ التوكن تلقائياً
+   ============================================================ */
+
+// قراءة التوكن من رابط URL تلقائياً عند فتح الصفحة
+function readTokenFromUrl() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tokenFromUrl = urlParams.get('token');
+    if (tokenFromUrl) {
+        setGithubToken(tokenFromUrl);
+        console.log('✓ تم قراءة التوكن من الرابط وحفظه');
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+        return true;
+    }
+    return false;
+}
+
+// إنشاء رابط مشاركة يحتوي على التوكن
+function generateSyncLink() {
+    const token = getGithubToken();
+    const baseUrl = window.location.origin + window.location.pathname;
+    return baseUrl + '?token=' + encodeURIComponent(token);
+}
+
+// عرض رابط المزامنة في النافذة
+function showSyncLinkModal() {
+    const syncLink = generateSyncLink();
+    const modalBody = document.querySelector('#tokenModal .modal-body');
+    if (!modalBody) return;
+
+    let linkSection = document.getElementById('syncLinkSection');
+    if (!linkSection) {
+        linkSection = document.createElement('div');
+        linkSection.id = 'syncLinkSection';
+        linkSection.style.cssText = 'margin-top:1.5rem;padding-top:1.5rem;border-top:2px dashed var(--gray-light);';
+        modalBody.appendChild(linkSection);
+    }
+
+    linkSection.innerHTML =
+        '<h3 style="margin-bottom:0.8rem;color:var(--navy-dark);font-size:1.1rem;">🔗 رابط المزامنة للمشاركة</h3>' +
+        '<p style="margin-bottom:0.8rem;color:var(--gray);line-height:1.7;font-size:0.9rem;">' +
+        'أرسل هذا الرابط لأي جهاز. عند فتحه سيتم ربط التوكن تلقائياً وستظهر جميع الأسماء المشتركة.' +
+        '</p>' +
+        '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;align-items:center;margin-bottom:0.8rem;">' +
+        '<input type="text" id="syncLinkInput" readonly ' +
+        'style="flex:1;min-width:250px;direction:ltr;text-align:left;padding:0.7rem 1rem;border:2px solid var(--gray-light);border-radius:var(--radius-sm);font-size:0.85rem;background:var(--off-white);color:var(--gray-dark);">' +
+        '<button class="btn btn-gold" onclick="copySyncLink()" style="flex-shrink:0;">📋 نسخ الرابط</button>' +
+        '</div>' +
+        '<div style="display:flex;gap:0.5rem;flex-wrap:wrap;">' +
+        '<button class="btn btn-outline" onclick="shareSyncLinkWhatsApp()" style="flex:1;min-width:150px;">📱 مشاركة عبر واتساب</button>' +
+        '<button class="btn btn-outline" onclick="shareSyncLinkQR()" style="flex:1;min-width:150px;">📷 رمز QR</button>' +
+        '</div>' +
+        '<div id="qrCodeContainer" style="display:none;text-align:center;margin-top:1rem;"></div>';
+
+    const linkInput = document.getElementById('syncLinkInput');
+    if (linkInput) linkInput.value = syncLink;
+
+    document.getElementById('tokenModal').classList.add('show');
+}
+
+function copySyncLink() {
+    const linkInput = document.getElementById('syncLinkInput');
+    if (!linkInput) return;
+    const link = linkInput.value;
+    navigator.clipboard.writeText(link).then(() => {
+        showToast('✓ تم نسخ رابط المزامنة', 'success');
+    }).catch(() => {
+        linkInput.select();
+        try { document.execCommand('copy'); showToast('✓ تم نسخ رابط المزامنة', 'success'); }
+        catch (e) { showToast('تعذّر النسخ، الرجاء نسخ الرابط يدوياً', 'error'); }
+    });
+}
+
+function shareSyncLinkWhatsApp() {
+    const linkInput = document.getElementById('syncLinkInput');
+    if (!linkInput) return;
+    const link = linkInput.value;
+    const message = '🔗 رابط قاعدة بيانات الأسماء - جامع عائشة بنت عبدالعزيز الدريبي\n\nافتح الرابط على جهازك لربط المزامنة تلقائياً:\n' + link;
+    window.open('https://wa.me/?text=' + encodeURIComponent(message), '_blank');
+}
+
+function shareSyncLinkQR() {
+    const linkInput = document.getElementById('syncLinkInput');
+    if (!linkInput) return;
+    const link = linkInput.value;
+    const qrContainer = document.getElementById('qrCodeContainer');
+    if (!qrContainer) return;
+
+    if (qrContainer.style.display === 'none') {
+        const qrApiUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(link);
+        qrContainer.innerHTML =
+            '<p style="margin-bottom:0.5rem;color:var(--gray);font-size:0.85rem;">امسح الرمز بكاميرا الجوال لفتح الرابط</p>' +
+            '<img src="' + qrApiUrl + '" alt="QR Code" style="border:2px solid var(--gold);border-radius:var(--radius-sm);padding:0.5rem;background:white;">';
+        qrContainer.style.display = 'block';
+    } else {
+        qrContainer.style.display = 'none';
+    }
+}
+
 /* ===== تحميل الأسماء — LocalStorage أولاً ثم مزامنة مع GitHub ===== */
 function loadNames() {
     const stored = localStorage.getItem(NAMES_KEY);
@@ -304,6 +405,12 @@ function handleNameKey(event) {
 
 /* ===== التهيئة عند تحميل الصفحة ===== */
 document.addEventListener('DOMContentLoaded', () => {
+    // قراءة التوكن من الرابط (إن وُجد) — قبل تحميل الأسماء
+    const tokenFromUrl = readTokenFromUrl();
+    if (tokenFromUrl) {
+        showToast('✓ تم ربط التوكن من الرابط بنجاح', 'success');
+    }
+
     loadNames();
     // مزامنة دورية كل 30 ثانية لجلب الأسماء من أجهزة أخرى
     setInterval(syncNamesFromGithub, 30000);
