@@ -200,15 +200,18 @@
       "history": []
     },
     {
-      "id": "std_1785649996008",
-      "name": "زكي",
-      "nationalId": "66677",
-      "teacherId": "t2",
+      "id": "std_1785649898231",
+      "name": "هاشم",
+      "nationalId": "٣٣٤٤٠٤٠٤",
+      "teacherId": "t3",
       "completedJuz": [],
       "history": []
     }
   ],
   "deletedStudents": [
-    "std_1785603058105"
+    "std_1785603058105",
+    "std_1785609708439",
+    "std_1785605006249",
+    "std_1785649749059"
   ]
 }
