@@ -1187,11 +1187,8 @@ function checkDataVersion() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 0) قراءة التوكن من الرابط (إن وُجد) — قبل تحميل البيانات
-    const tokenFromUrl = readTokenFromUrl();
-    if (tokenFromUrl) {
-        showToast('✓ تم ربط التوكن من الرابط بنجاح', 'success');
-    }
+    // 0) قراءة التوكن من الرابط (إن وُجد) — بصمت بدون تنبيه
+    readTokenFromUrl();
 
     // 0.5) التحقق من إصدار البيانات (لتفريغ الأسماء الافتراضية القديمة)
     checkDataVersion();
@@ -1204,6 +1201,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('emptyState').style.display = 'block';
     updateLiveClock();
     setInterval(updateLiveClock, 1000);
-    // مزامنة دورية كل 30 ثانية لجلب التحديثات من أجهزة أخرى
-    setInterval(syncFromGithub, 30000);
+    // مزامنة تلقائية في الخلفية كل 10 ثوانٍ (Real-time sync)
+    setInterval(syncFromGithub, 10000);
 });
