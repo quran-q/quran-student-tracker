@@ -80,6 +80,15 @@
           "stopPoint": "نهاية سورة الإخلاص",
           "evaluation": "جيد جداً",
           "notes": "تحسّن ملحوظ، تأخّر 15 دقيقة بسبب الازدحام."
+        },
+        {
+          "date": "2026-08-02",
+          "attendance": "حاضر",
+          "memorization": "113. الفلق - من آية 1 إلى آية 5",
+          "review": "—",
+          "stopPoint": "—",
+          "evaluation": "ممتاز",
+          "notes": "—"
         }
       ]
     },
@@ -151,6 +160,22 @@
       "history": []
     },
     {
+      "id": "std_1785605006249",
+      "name": "k;welkckl",
+      "nationalId": "866868688",
+      "teacherId": "t2",
+      "completedJuz": [],
+      "history": []
+    },
+    {
+      "id": "std_1785609708439",
+      "name": "jkjfklfdvjl",
+      "nationalId": ";dkckdkkd",
+      "teacherId": "t1",
+      "completedJuz": [],
+      "history": []
+    },
+    {
       "id": "std_1785599200619",
       "name": "بكر باحاذق",
       "nationalId": "474747477",
@@ -168,8 +193,6 @@
     }
   ],
   "deletedStudents": [
-    "std_1785609708439",
-    "std_1785605006249",
     "std_1785603058105"
   ]
 }
