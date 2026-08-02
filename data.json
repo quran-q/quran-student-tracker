@@ -295,6 +295,18 @@
       "nationality": "اليمن",
       "submittedAt": "2026-08-02T10:54:23.743Z",
       "status": "pending"
+    },
+    {
+      "id": "reg_1785668570397_m70zf",
+      "name": "هاني",
+      "nationalId": "٣٩٩٣١٧٩٤١٩٧٩٧٥١",
+      "fatherPhone": "٩٨٤٩٧٧٩٩٢٧٩٧٥",
+      "studentPhone": "—",
+      "birthDate": "2026-08-11",
+      "educationLevel": "ثانوي",
+      "nationality": "سعودي",
+      "submittedAt": "2026-08-02T11:02:50.397Z",
+      "status": "pending"
     }
   ]
 }
