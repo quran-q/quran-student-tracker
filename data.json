@@ -206,12 +206,17 @@
       "teacherId": "t3",
       "completedJuz": [],
       "history": []
+    },
+    {
+      "id": "std_1785649996008",
+      "name": "زكي",
+      "nationalId": "66677",
+      "teacherId": "t2",
+      "completedJuz": [],
+      "history": []
     }
   ],
   "deletedStudents": [
-    "std_1785603058105",
-    "std_1785609708439",
-    "std_1785605006249",
-    "std_1785649749059"
+    "std_1785603058105"
   ]
 }
