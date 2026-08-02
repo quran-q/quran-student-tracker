@@ -51,6 +51,15 @@
           "stopPoint": "آية 5 من سورة البقرة",
           "evaluation": "—",
           "notes": "غاب بعذر مرضي، نكمل في الحصة القادمة."
+        },
+        {
+          "date": "2026-08-02",
+          "attendance": "حاضر",
+          "memorization": "—",
+          "review": "—",
+          "stopPoint": "—",
+          "evaluation": "—",
+          "notes": "تسجيل حضور جماعي"
         }
       ]
     },
@@ -140,6 +149,15 @@
           "stopPoint": "—",
           "evaluation": "ممتاز",
           "notes": "—"
+        },
+        {
+          "date": "2026-08-02",
+          "attendance": "حاضر",
+          "memorization": "—",
+          "review": "—",
+          "stopPoint": "—",
+          "evaluation": "—",
+          "notes": "تسجيل حضور جماعي"
         }
       ]
     },
@@ -165,7 +183,17 @@
       "nationalId": "474747477",
       "teacherId": "t1",
       "completedJuz": [],
-      "history": []
+      "history": [
+        {
+          "date": "2026-08-02",
+          "attendance": "حاضر",
+          "memorization": "—",
+          "review": "—",
+          "stopPoint": "—",
+          "evaluation": "—",
+          "notes": "تسجيل حضور جماعي"
+        }
+      ]
     },
     {
       "id": "std_1785610872698",
@@ -181,7 +209,17 @@
       "nationalId": "٤٤٣٢٤٢٤٢",
       "teacherId": "t1",
       "completedJuz": [],
-      "history": []
+      "history": [
+        {
+          "date": "2026-08-02",
+          "attendance": "حاضر",
+          "memorization": "—",
+          "review": "—",
+          "stopPoint": "—",
+          "evaluation": "—",
+          "notes": "تسجيل حضور جماعي"
+        }
+      ]
     },
     {
       "id": "std_1785648205137",
@@ -197,7 +235,17 @@
       "nationalId": "٣٣٣٤٤٤٤",
       "teacherId": "t1",
       "completedJuz": [],
-      "history": []
+      "history": [
+        {
+          "date": "2026-08-02",
+          "attendance": "حاضر",
+          "memorization": "—",
+          "review": "—",
+          "stopPoint": "—",
+          "evaluation": "—",
+          "notes": "تسجيل حضور جماعي"
+        }
+      ]
     },
     {
       "id": "std_1785649898231",
@@ -217,9 +265,9 @@
     }
   ],
   "deletedStudents": [
-    "std_1785603058105",
     "std_1785609708439",
     "std_1785605006249",
+    "std_1785603058105",
     "std_1785649749059"
   ]
 }
