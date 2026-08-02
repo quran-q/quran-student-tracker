@@ -282,5 +282,19 @@
     "std_1785605006249",
     "std_1785603058105",
     "std_1785649749059"
+  ],
+  "pendingRegistrations": [
+    {
+      "id": "reg_1785668063743_1wkkk",
+      "name": "سعد عمر عبدالله",
+      "nationalId": "2019287333",
+      "fatherPhone": "032848477373",
+      "studentPhone": "—",
+      "birthDate": "2026-08-24",
+      "educationLevel": "متوسط",
+      "nationality": "اليمن",
+      "submittedAt": "2026-08-02T10:54:23.743Z",
+      "status": "pending"
+    }
   ]
 }
