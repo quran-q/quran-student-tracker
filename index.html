@@ -228,13 +228,10 @@
         <!-- ===== Teacher Panel ===== -->
         <section id="teacher-panel" class="tab-section">
             <div class="portal-container">
-                <!-- Sync + Logout Buttons -->
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;flex-wrap:wrap;gap:0.5rem;">
+                <!-- Logout Button -->
+                <div style="display:flex;justify-content:flex-end;margin-bottom:0.5rem;">
                     <button onclick="teacherLogout()" style="cursor:pointer;background:var(--red);color:var(--white);border:none;border-radius:var(--radius-sm);padding:0.6rem 1.2rem;font-family:inherit;font-weight:700;font-size:0.9rem;transition:var(--transition);">
                         🚪 تسجيل الخروج
-                    </button>
-                    <button onclick="showSyncLinkModal()" style="cursor:pointer;background:var(--gold);color:var(--white);border:none;border-radius:var(--radius-sm);padding:0.6rem 1.2rem;font-family:inherit;font-weight:700;font-size:0.9rem;transition:var(--transition);">
-                        🔗 ربط المزامنة بين الأجهزة
                     </button>
                 </div>
 
@@ -476,33 +473,10 @@
         </div>
     </div>
 
-    <!-- Token Modal (لإدخال توكن GitHub للمزامنة) -->
-    <div id="tokenModal" class="modal-overlay" onclick="if(event.target===this)closeTokenModal()">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>🔐 ربط التوكن للمزامنة</h2>
-                <button class="modal-close" onclick="closeTokenModal()">✕</button>
-            </div>
-            <div class="modal-body">
-                <p style="margin-bottom:1rem;color:var(--gray);line-height:1.8;">
-                    للمزامنة بين الأجهزة (اللابتوب والجوال)، أدخل توكن GitHub مرة واحدة فقط.<br>
-                    سيُحفظ التوكن في متصفحك ولن يُشارك مع أحد.
-                </p>
-                <div class="form-group">
-                    <label for="tokenInput">GitHub Token</label>
-                    <input type="password" id="tokenInput" placeholder="ghp_..." style="direction:ltr;text-align:left;">
-                </div>
-                <div class="form-actions">
-                    <button class="btn btn-gold" onclick="saveTokenFromModal()">💾 حفظ التوكن</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Toast Notification -->
     <div id="toast" class="toast"></div>
 
-    <script src="js/app.js?v=7"></script>
+    <script src="js/app.js?v=8"></script>
 </body>
 </html>
 ]]>
